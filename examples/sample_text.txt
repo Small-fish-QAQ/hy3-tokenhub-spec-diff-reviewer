@@ -1,0 +1,3 @@
+The team is designing a small issue triage helper for incoming bug reports. Given a short issue report, the helper should assign a priority, suggest the most likely owner team, and propose the next action for the support engineer.
+
+The first version needs to handle imperfect reports from real users. Some issues arrive without labels, severity text is inconsistent across teams, and user impact is often implied instead of stated directly. The helper should avoid overconfident classification when the report is ambiguous and should ask for missing details when needed.

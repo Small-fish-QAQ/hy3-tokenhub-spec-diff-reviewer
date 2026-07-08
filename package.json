@@ -1,0 +1,24 @@
+{
+  "name": "hy3-tokenhub-dev-brief",
+  "version": "1.0.0",
+  "description": "A tiny Hy3-powered developer briefing CLI using Tencent Cloud TokenHub.",
+  "main": "hy3_showcase.js",
+  "scripts": {
+    "chat": "node hy3_showcase.js chat",
+    "summarize": "node hy3_showcase.js summarize",
+    "code-review": "node hy3_showcase.js code-review",
+    "brief": "node hy3_showcase.js brief",
+    "all": "node hy3_showcase.js all"
+  },
+  "keywords": [
+    "hy3",
+    "tokenhub",
+    "tencent-cloud"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}
