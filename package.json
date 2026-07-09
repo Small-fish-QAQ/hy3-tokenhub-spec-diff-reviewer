@@ -18,6 +18,13 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Small-fish-QAQ/hy3-tokenhub-dev-brief.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "dotenv": "^17.4.2"
   }
