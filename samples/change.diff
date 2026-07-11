@@ -1,0 +1,49 @@
+diff --git a/src/route-task.js b/src/route-task.js
+new file mode 100644
+index 0000000..50a8215
+--- /dev/null
++++ b/src/route-task.js
+@@ -0,0 +1,22 @@
++'use strict';
++
++const CATEGORY_OWNERS = {
++  billing: 'payments',
++  security: 'security',
++  support: 'support'
++};
++
++function routeTask(task, allowedTeams) {
++  const owner = CATEGORY_OWNERS[task.category] || 'general';
++
++  return {
++    status: 'assigned',
++    owner,
++    escalation: null,
++    reason: `Routed "${task.title}" by category`
++  };
++}
++
++module.exports = {
++  routeTask
++};
+diff --git a/test/route-task.test.js b/test/route-task.test.js
+new file mode 100644
+index 0000000..12634e8
+--- /dev/null
++++ b/test/route-task.test.js
+@@ -0,0 +1,15 @@
++'use strict';
++
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { routeTask } = require('../src/route-task');
++
++test('routes a billing task to payments', () => {
++  const result = routeTask(
++    { title: 'Invoice failed', category: 'billing', priority: 'normal' },
++    ['payments', 'support']
++  );
++
++  assert.equal(result.status, 'assigned');
++  assert.equal(result.owner, 'payments');
++});
