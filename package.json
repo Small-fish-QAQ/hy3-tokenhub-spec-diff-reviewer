@@ -18,7 +18,7 @@
   "type": "commonjs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Small-fish-QAQ/hy3-tokenhub-dev-brief.git"
+    "url": "git+https://github.com/Small-fish-QAQ/hy3-tokenhub-spec-diff-reviewer.git"
   },
   "engines": {
     "node": ">=18"
