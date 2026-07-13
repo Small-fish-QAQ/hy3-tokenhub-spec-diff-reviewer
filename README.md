@@ -1,83 +1,47 @@
 # Hy3 TokenHub Spec-to-Diff Reviewer
 
-Use Hy3 to answer a practical review question:
+[![CI](https://github.com/Small-fish-QAQ/hy3-tokenhub-spec-diff-reviewer/actions/workflows/ci.yml/badge.svg)](https://github.com/Small-fish-QAQ/hy3-tokenhub-spec-diff-reviewer/actions/workflows/ci.yml)
+![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-339933?logo=nodedotjs&logoColor=white)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 
-> **Does this proposed diff satisfy the written requirements?**
+**Turn a written specification and a unified diff into a structured Markdown PR-readiness review with Hy3 through Tencent Cloud TokenHub.**
 
-This reusable CLI compares a specification with a unified diff and produces a structured Markdown PR-readiness report through Tencent Cloud TokenHub.
+This focused, read-only Node.js CLI answers one practical question: does the proposed change satisfy the written requirements? It reviews only the artifacts you provide and does not edit, stage, commit, or push source code.
 
-Use it with:
+[Open the 31-second demo](docs/assets/hy3-spec-to-diff-demo.mp4) | [Read the checked-in example report](docs/examples/sample-pr-readiness-report.md)
 
-- your own specification and diff files;
-- a diff piped through standard input; or
-- changes already staged in Git.
+| Capability | Summary |
+| --- | --- |
+| Flexible input | Review a diff file, piped standard input, or only the changes staged in Git. |
+| Structured output | Get an executive verdict, requirement coverage, P0-P3 findings, missing tests, uncertainties, and next steps. |
+| Terminal-friendly execution | Stream Markdown by default, choose non-streaming mode, set a timeout, cancel with `Ctrl+C`, or save a completed report. |
+| Local safeguards | Enforce input limits, protect spec and diff files from output collisions, publish reports atomically, detect length-truncated responses, and redact credentials from expected errors. |
+| Offline verification | Run the test suite without a TokenHub key or live service request; CI exercises the declared minimum compatibility target, Node.js 18, and Node.js 24. |
 
-The generated report includes:
+## See It in Action
 
-- an executive verdict;
-- requirement-by-requirement coverage;
-- evidence-grounded P0-P3 findings;
-- missing tests;
-- uncertainties; and
-- recommended next steps.
-
-```text
-Written specification
-        +
-Proposed unified diff
-        |
-        v
-Hy3 through Tencent Cloud TokenHub
-        |
-        v
-Markdown PR-readiness report
-```
-
-## Quick Start
-
-Run the bundled specification and diff from PowerShell:
-
-```powershell
-node .\hy3_showcase.js diff-review `
-  --spec .\samples\issue.md `
-  --diff .\samples\change.diff
-```
-
-Or use the focused npm command:
-
-```powershell
-npm.cmd run review:sample
-```
-
-Both commands make a live request and send the supplied specification and diff to the remote TokenHub service.
-
-> [!NOTE]
-> The bundled sample intentionally contains an incomplete implementation. Its expected verdict is `Not ready`, allowing the reviewer to demonstrate requirement coverage, uncertainty handling, prioritized findings, and missing-test detection.
-
-## Demo
-
-### Streaming CLI Review
-
-Hy3 reads the supplied specification and diff, then streams a structured PR-readiness report directly to the terminal.
+The terminal screenshot links to the full 31-second demo file:
 
 [![Hy3 Spec-to-Diff Reviewer streaming in PowerShell](docs/assets/hy3-spec-to-diff-terminal.png)](docs/assets/hy3-spec-to-diff-demo.mp4)
 
-[Watch the short streaming demo](docs/assets/hy3-spec-to-diff-demo.mp4)
-
-### Rendered Markdown Report
-
-A completed review can be saved and rendered as Markdown, including the executive verdict, requirement coverage matrix, and prioritized findings.
+A completed review can also be saved and rendered as Markdown:
 
 ![Rendered Hy3 PR-readiness report](docs/assets/hy3-spec-to-diff-report.png)
 
-## Requirements and Installation
+The two screenshots above come from separate real runs of the bundled sample, so exact model wording may differ between them.
+
+The [example PR-readiness report](docs/examples/sample-pr-readiness-report.md) is an illustrative checked-in artifact based on the bundled sample inputs. It is not a protocol specification, a test fixture, or evidence of a live request made during this documentation update. Live wording may vary.
+
+## Quick Start
 
 You need:
 
 - Node.js 18 or later; and
-- a Tencent Cloud TokenHub API key with access to the `hy3` model.
+- a Tencent Cloud TokenHub API key with access to the `hy3` model on the Guangzhou / China-mainland service boundary.
 
-Install the existing dependency versions:
+Node.js 18 is retained as the project's minimum compatibility target.
+
+Install the existing dependency versions from PowerShell:
 
 ```powershell
 npm.cmd install
@@ -89,51 +53,112 @@ Create a private local environment file from the tracked placeholder:
 Copy-Item .env.example .env
 ```
 
-Replace the placeholder locally. Do not commit or share this file.
+Add your key to `.env` locally, or provide `TOKENHUB_API_KEY` through your shell or secret manager. Do not commit or share the key.
 
-You can instead supply `TOKENHUB_API_KEY` through your shell or secret manager.
+Run the bundled review:
 
-Credentials are loaded lazily. Help commands, argument errors, input-validation failures, and output-path collision failures do not require an API key.
+```powershell
+npm.cmd run review:sample
+```
 
-### Service Boundary
+Or invoke the CLI directly:
 
-The reviewer is configured for the Guangzhou / China-mainland TokenHub service boundary:
+```powershell
+node .\hy3_showcase.js diff-review `
+  --spec .\samples\issue.md `
+  --diff .\samples\change.diff
+```
+
+These commands make a live request. The complete supplied specification and diff are sent to the remote TokenHub service.
+
+> [!NOTE]
+> The bundled sample intentionally contains an incomplete implementation, so `Not ready` is the expected verdict. Exact wording and individual findings may vary between runs.
+
+## Codex Companion Workflow
+
+This project is a standalone CLI: it does not depend on, invoke, or run inside Codex CLI. It is designed to fit naturally after a Hy3-configured coding client such as Codex CLI:
+
+1. Use Codex CLI with Hy3 to implement a change from written requirements.
+2. Inspect the resulting change and generate a unified diff, pipe one from Git, or stage the intended files.
+3. Run this reviewer with the same written requirements and the resulting diff.
+4. Use the Markdown output as an advisory PR-readiness check alongside deterministic tests and human review.
+
+```text
+Written requirements
+        |
+        v
+Codex CLI + Hy3 implementation pass
+        |
+        v
+Unified or staged diff
+        |
+        v
+Hy3 TokenHub Spec-to-Diff Reviewer
+        |
+        v
+Markdown report + tests + human review
+```
+
+The handoff is manual and artifact-based, not automatic. This reviewer receives only the specification and diff explicitly supplied to it. It does not gain repository access from Codex, validate a pull request automatically, or create an agent loop.
+
+## Report Structure
+
+The prompt contract asks Hy3 to return only Markdown with this structure:
+
+- `Executive Verdict`: exactly one of `Ready`, `Ready after fixes`, `Not ready`, or `Uncertain`;
+- `Requirement Coverage`: a requirement-by-requirement table using `Met`, `Partially met`, `Not met`, or `Uncertain`;
+- `Findings`: evidence-grounded P0-P3 sections, using `None identified` when a severity has no supported finding;
+- `Missing Tests`;
+- `Uncertainties`; and
+- `Recommended Next Steps`.
+
+The review prompt tells the model to use only the supplied artifacts, cite evidence when available, avoid inventing repository context, and distinguish missing evidence from a definite failure.
+
+## TokenHub Configuration and Service Boundary
+
+The reviewer uses a fixed configuration:
 
 - endpoint: `https://tokenhub.tencentmaas.com/v1/chat/completions`
 - model: `hy3`
+- intended service boundary: Guangzhou / China-mainland
 
-Use a TokenHub key provisioned for that same boundary.
+Use a TokenHub key provisioned for that same boundary. The CLI does not offer an endpoint or region-selection option.
 
-Singapore / global compatibility has not been verified, and the CLI does not provide an endpoint or region-selection option.
+Singapore / global compatibility has not been verified. The documented manual verification covers streaming and non-streaming execution against the Guangzhou service boundary only.
 
-Streaming and non-streaming execution have both been manually verified with the Guangzhou service boundary.
+Credentials are loaded lazily. Help commands, argument errors, input-validation failures, and output-path collision failures do not require an API key or make a TokenHub request.
 
-## CLI
+## CLI Reference
 
-Show the supported command and its options:
+Show the supported command and options:
 
 ```powershell
 node .\hy3_showcase.js --help
 node .\hy3_showcase.js diff-review --help
 ```
 
-The command shape is:
+Command shape:
 
 ```text
 node hy3_showcase.js diff-review --spec <path> (--diff <path> | --diff - | --git) [options]
 ```
 
-`--spec <path>` must point to a non-empty written issue, requirement set, or other specification.
+`--spec <path>` must point to a non-empty written issue, requirement set, or other specification. Choose exactly one diff source:
 
-Choose exactly one diff source:
+- `--diff <path>` reads a unified diff file;
+- `--diff -` reads a unified diff from standard input; or
+- `--git` reads only `git diff --cached`.
 
-- `--diff <path>`
-- `--diff -`
-- `--git`
+Available options:
+
+| Option | Behavior |
+| --- | --- |
+| `--output <path>` | Publish the completed Markdown report after a successful response. |
+| `--timeout <seconds>` | Set a whole-number request timeout from 1 to 3600 seconds; default 180. |
+| `--no-stream` | Use the normal non-streaming response path. |
+| `--help` | Show command help. |
 
 ### Review Files
-
-Use any specification and unified diff files:
 
 ```powershell
 node .\hy3_showcase.js diff-review `
@@ -143,8 +168,6 @@ node .\hy3_showcase.js diff-review `
 
 ### Read a Diff from Standard Input
 
-Pass `--diff -` to read the proposed diff from standard input:
-
 ```powershell
 git diff | node .\hy3_showcase.js diff-review `
   --spec .\path\to\issue.md `
@@ -153,25 +176,19 @@ git diff | node .\hy3_showcase.js diff-review `
 
 ### Review Staged Git Changes
 
-Pass `--git` to review only `git diff --cached`:
-
 ```powershell
 node .\hy3_showcase.js diff-review `
   --spec .\path\to\issue.md `
   --git
 ```
 
-The command never falls back to unstaged changes.
+`--git` uses only the staged diff and never falls back to unstaged changes. If the staged diff is empty, stage the intended changes, use `--diff <path>`, or pipe a diff with `--diff -`.
 
-If the staged diff is empty, stage the intended changes, use `--diff <path>`, or pipe a diff with `--diff -`.
+## Streaming, Output, Timeout, and Cancellation
 
-## Streaming, Output, and Cancellation
+Streaming is enabled by default. Generated Markdown is written incrementally to stdout, while input progress, request diagnostics, and saved-path notices go to stderr. This separation allows report content to be redirected without mixing in status messages.
 
-Streaming is enabled by default.
-
-Generated Markdown is written incrementally to stdout, while input progress, request diagnostics, and saved-path notices go to stderr. This separation allows report content to be redirected without mixing in status messages.
-
-Use the normal non-streaming response path when needed:
+Use the non-streaming path when needed:
 
 ```powershell
 node .\hy3_showcase.js diff-review `
@@ -180,52 +197,13 @@ node .\hy3_showcase.js diff-review `
   --no-stream
 ```
 
-The corresponding npm convenience command is:
+The matching convenience command is:
 
 ```powershell
 npm.cmd run review:sample:no-stream
 ```
 
-### Truncated Responses
-
-The CLI checks the model finish reason before treating a review as complete.
-
-If TokenHub reports:
-
-```text
-finish_reason: "length"
-```
-
-the review is considered incomplete.
-
-In that case:
-
-- the command exits with a non-zero status;
-- the user is asked to reduce the input scope and retry;
-- no `--output` report is published;
-- an existing output report is left unchanged;
-- streaming text already shown in the terminal may be partial; and
-- non-streaming incomplete text is not printed.
-
-### Timeout
-
-Set a request timeout in whole seconds with:
-
-```text
---timeout <seconds>
-```
-
-The default is 180 seconds. Accepted values range from 1 through 3600.
-
-### Cancellation
-
-Press `Ctrl+C` to cancel an in-progress request.
-
-The request is aborted and the CLI exits with cancellation status instead of continuing in the background.
-
 ### Save a Completed Report
-
-Use `--output <path>` to stream to the terminal and publish the complete report after a successful response:
 
 ```powershell
 node .\hy3_showcase.js diff-review `
@@ -234,15 +212,31 @@ node .\hy3_showcase.js diff-review `
   --output .\reports\hy3-review.md
 ```
 
-Parent directories are created when needed.
+Parent directories are created when needed. Publication happens only after a successful, complete response and uses a temporary file plus rename, so a failed, cancelled, or truncated request does not expose a partial new report or replace an existing report.
 
-Publication is atomic, so a failed, interrupted, or truncated request does not expose a partial new report or replace an existing report.
+The output path may replace an unrelated existing report after success. It is rejected when it resolves to the specification or a file-based diff input, including normalized and real-path aliases, so those inputs cannot be overwritten accidentally.
 
-The reviewer also rejects output paths that resolve to the specification or file-based diff input, including normalized path aliases, so input files cannot be overwritten accidentally.
+### Truncated Responses
+
+The CLI checks the model finish reason before treating a review as complete. If TokenHub reports:
+
+```text
+finish_reason: "length"
+```
+
+the command exits non-zero and asks the user to reduce the input scope and retry. No `--output` report is published, and an existing report at that path remains unchanged. Streaming text already displayed may be partial; incomplete non-streaming text is not printed.
+
+The reviewer currently requests up to 1,800 output tokens per review. This fixed output budget cannot be changed through the CLI and is not a general TokenHub service limit.
+
+### Timeout and Cancellation
+
+`--timeout <seconds>` defaults to 180 seconds and accepts values from 1 through 3600.
+
+Press `Ctrl+C` to abort an in-progress request. The CLI exits with cancellation status 130 instead of leaving the request running in the background.
 
 ## Local Input Safeguards
 
-The CLI enforces local byte limits before contacting TokenHub:
+Before credentials are loaded or TokenHub is contacted, the CLI rejects empty inputs and enforces these byte limits:
 
 | Input | Maximum |
 | --- | ---: |
@@ -250,74 +244,71 @@ The CLI enforces local byte limits before contacting TokenHub:
 | Diff | 512 KiB |
 | Combined specification and diff | 1 MiB |
 
-These safeguards keep local runs predictable. They are not TokenHub service limits.
+These are local safeguards for predictable runs, not TokenHub service limits.
 
-Empty specifications and diffs are also rejected.
+For staged review, the Git command disables external diff drivers, text conversion, and colored output. Reading files, standard input, and staged changes does not modify source code or Git state.
 
 ## Security and Privacy
 
-- The complete supplied specification and diff are sent to the remote Tencent Cloud TokenHub service. Review them for secrets, personal data, proprietary code, and other sensitive material before running the command.
+- The complete supplied specification and diff are sent to the remote Tencent Cloud TokenHub service. Review inputs for secrets, personal data, proprietary code, and other sensitive material before running the command.
+- Generated reports may repeat sensitive material from those inputs. Inspect a report before saving or sharing it.
 - Keep `TOKENHUB_API_KEY` out of source files, samples, logs, screenshots, and generated reports. `.gitignore` excludes `.env`.
-- Generated reports may repeat sensitive material from the supplied inputs. Inspect reports before saving or sharing them.
-- Expected error messages are sanitized, authorization values are redacted, and response headers are not printed.
-- Reading files, standard input, and staged Git changes does not modify source code or Git state.
-- `--output` is the only report-writing operation.
-- Git review mode uses only the staged diff and disables external diff drivers, text conversion, and colored output.
-- The reviewer does not gain automatic repository access and does not scan, edit, stage, commit, or push code.
-- The TokenHub endpoint is fixed rather than supplied through an arbitrary URL option.
+- Expected error messages are sanitized, known and credential-shaped authorization values are redacted, and response headers are not printed. These measures do not make arbitrary inputs or generated reports safe to share.
+- With respect to source and Git state, the reviewer is read-only: it reads only the explicitly supplied files, standard-input diff, or staged Git diff, and it does not apply patches, edit code, stage files, commit, or push.
+- `--output` is the sole user-facing operation that writes a report.
+- The fixed TokenHub endpoint avoids accepting an arbitrary request URL from the command line.
 
 ## Limitations
 
 - Hy3 sees only the supplied specification and unified diff.
 - It cannot verify omitted surrounding code, runtime behavior, or test results.
-- Findings may be incomplete or mistaken.
+- Findings can be incomplete or mistaken; missing evidence is not proof that an implementation is defective.
+- A generated report is advisory, not proof of security, correctness, or requirement completion.
 - Use the report alongside human review and deterministic tests.
-- A generated review is not proof of security, correctness, or requirement completion.
-- The CLI does not currently select a different TokenHub region or endpoint.
-- The tool produces advisory review output and does not modify or apply code changes.
+- The CLI cannot select a different TokenHub region or endpoint, and Singapore / global compatibility remains unverified.
+- The reviewer does not modify code, apply changes, open pull requests, or approve or gate merges.
 
-## Offline Tests
+## Offline Tests and CI
 
-The test suite uses injected requests and local fixtures. It does not require a TokenHub key and does not make a live TokenHub request:
+The test suite uses injected request implementations and local fixtures. It does not require a TokenHub key and does not make a live TokenHub request:
 
 ```powershell
 npm.cmd test
 ```
 
-The suite currently covers:
+Coverage includes:
 
 - argument parsing and help;
 - file, stdin, and staged-Git input;
-- path normalization and output collisions;
+- path normalization and input/output collision protection;
 - atomic report publication;
 - streaming and non-streaming responses;
 - SSE parsing and chunk boundaries;
 - timeout and cancellation behavior;
 - truncated-response handling;
-- secret redaction;
-- API-key normalization;
-- the review prompt contract; and
-- Node.js 18 compatibility.
+- secret redaction and API-key normalization; and
+- the review prompt contract.
 
-## Project Scope
+The GitHub Actions workflow runs `npm ci` and this offline suite on Node.js 18 and Node.js 24 for every push and pull request. It verifies the reviewer project itself; it does not turn generated reviews into an automated merge gate.
 
-This project deliberately stays focused on one read-only workflow:
+## Deliberate Scope
+
+The project stays focused on one artifact-driven workflow:
 
 ```text
 Specification + Diff -> Hy3 Review -> Markdown Report
 ```
 
-It does not implement:
+It deliberately does not implement:
 
-- automated code modification;
-- patch application;
+- automated code modification or patch application;
 - repository scanning;
-- agent loops;
-- Git staging or committing;
-- CI merge gating; or
+- automatic Codex handoffs or agent loops;
+- Git staging, committing, or pushing;
+- reviewer-driven CI merge gating; or
 - a web interface.
 
-Keeping the scope narrow makes the tool easier to understand, audit, and reuse.
+This narrow scope keeps the CLI understandable, auditable, and reusable.
 
 ## License
 
