@@ -20,17 +20,23 @@ This focused, read-only Node.js CLI answers one practical question: does the pro
 
 ## See It in Action
 
-The terminal screenshot links to the full 31-second demo file:
+[![Hy3 Spec-to-Diff Reviewer streaming preview](docs/assets/hy3-spec-to-diff-preview.gif)](docs/assets/hy3-spec-to-diff-demo.mp4)
 
-[![Hy3 Spec-to-Diff Reviewer streaming in PowerShell](docs/assets/hy3-spec-to-diff-terminal.png)](docs/assets/hy3-spec-to-diff-demo.mp4)
+The 12-second preview shows the CLI reading a specification and diff, streaming a
+structured Hy3 review, and surfacing requirement-level findings.
+
+[Watch the complete 31-second demo](docs/assets/hy3-spec-to-diff-demo.mp4)
 
 A completed review can also be saved and rendered as Markdown:
 
 ![Rendered Hy3 PR-readiness report](docs/assets/hy3-spec-to-diff-report.png)
 
-The two screenshots above come from separate real runs of the bundled sample, so exact model wording may differ between them.
+The animated preview and rendered report screenshot come from separate real
+TokenHub runs, so exact model wording may differ between them.
 
-The [example PR-readiness report](docs/examples/sample-pr-readiness-report.md) is an illustrative checked-in artifact based on the bundled sample inputs. It is not a protocol specification, a test fixture, or evidence of a live request made during this documentation update. Live wording may vary.
+[Read the verified live PR-readiness report](docs/examples/sample-pr-readiness-report.md).
+It was generated from a real staged Git diff produced by Codex CLI and is
+preserved with an explicit human-adjudication note.
 
 ## Quick Start
 
@@ -76,12 +82,35 @@ These commands make a live request. The complete supplied specification and diff
 
 ## Codex Companion Workflow
 
-This project is a standalone CLI: it does not depend on, invoke, or run inside Codex CLI. It is designed to fit naturally after a Hy3-configured coding client such as Codex CLI:
+This project is a standalone CLI: it does not depend on, invoke, or run inside
+Codex CLI. The handoff is manual and artifact-based.
 
-1. Use Codex CLI with Hy3 to implement a change from written requirements.
-2. Inspect the resulting change and generate a unified diff, pipe one from Git, or stage the intended files.
-3. Run this reviewer with the same written requirements and the resulting diff.
-4. Use the Markdown output as an advisory PR-readiness check alongside deterministic tests and human review.
+A verified workflow was exercised end to end:
+
+1. Codex CLI, configured to use Hy3 through TokenHub, implemented a change from
+   written requirements.
+2. The resulting implementation and tests were inspected and staged in Git.
+3. This reviewer compared the same requirements with the staged diff.
+4. The first review identified a real malformed-`change.files` validation gap.
+5. Human review found an additional high-risk reviewer-selection defect that the
+   model review missed.
+6. Codex fixed both defects, and the final local suite passed 13/13 tests.
+
+### Codex implementation and correction pass
+
+![Codex CLI with Hy3 completing the implementation and regression fixes](docs/assets/codex-workflow-generate.png)
+
+Codex edited only the intended implementation and test files, added regression
+coverage, and reported 13 passing tests after the corrective pass.
+
+### Independent Hy3 staged-diff review
+
+![Hy3 Reviewer identifying a requirement gap in the staged Codex diff](docs/assets/codex-workflow-review.png)
+
+The checked-in
+[verified report](docs/examples/sample-pr-readiness-report.md) preserves the
+first live review pass. It correctly identified one specification violation,
+but it did not replace deterministic tests or human judgment.
 
 ```text
 Written requirements
@@ -90,16 +119,18 @@ Written requirements
 Codex CLI + Hy3 implementation pass
         |
         v
-Unified or staged diff
+Human inspection + staged Git diff
         |
         v
 Hy3 TokenHub Spec-to-Diff Reviewer
         |
         v
-Markdown report + tests + human review
+Markdown report + tests + human adjudication
 ```
 
-The handoff is manual and artifact-based, not automatic. This reviewer receives only the specification and diff explicitly supplied to it. It does not gain repository access from Codex, validate a pull request automatically, or create an agent loop.
+The reviewer receives only the specification and diff explicitly supplied to
+it. It does not gain repository access from Codex, validate a pull request
+automatically, apply fixes, or create an agent loop.
 
 ## Report Structure
 
