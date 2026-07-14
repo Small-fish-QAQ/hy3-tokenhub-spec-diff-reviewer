@@ -27,14 +27,19 @@ Per Issue #2's capability list, this showcase exercises Hy3's long-form structur
 The 12-second preview shows the CLI reading a specification and diff, streaming a
 structured Hy3 review, and surfacing requirement-level findings.
 
-[Watch the complete 31-second demo](docs/assets/hy3-spec-to-diff-demo.mp4)
+### Complete 31-second demo
+
+https://github.com/user-attachments/assets/93667341-2cd8-4a30-9b40-0c7ec7eed03b
+
+[Open the versioned MP4](docs/assets/hy3-spec-to-diff-demo.mp4)
 
 A completed review can also be saved and rendered as Markdown:
 
 ![Rendered Hy3 PR-readiness report](docs/assets/hy3-spec-to-diff-report.png)
 
-The animated preview and rendered report screenshot come from separate real
-TokenHub runs, so exact model wording may differ between them.
+The animated preview is extracted from the complete demo recording. The rendered
+report screenshot comes from a separate real TokenHub run, so exact model wording
+may differ.
 
 [Read the verified live PR-readiness report](docs/examples/sample-pr-readiness-report.md).
 It was generated from a real staged Git diff produced by Codex CLI and is
