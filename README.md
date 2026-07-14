@@ -8,6 +8,8 @@
 
 This focused, read-only Node.js CLI answers one practical question: does the proposed change satisfy the written requirements? It reviews only the artifacts you provide and does not edit, stage, commit, or push source code.
 
+Per Issue #2's capability list, this showcase exercises Hy3's long-form structured generation and evidence-grounded analysis of a written specification and unified diff. It does not claim native tool calling, repository access, or an autonomous agent loop.
+
 [Open the 31-second demo](docs/assets/hy3-spec-to-diff-demo.mp4) | [Read the checked-in example report](docs/examples/sample-pr-readiness-report.md)
 
 | Capability | Summary |
@@ -85,6 +87,10 @@ These commands make a live request. The complete supplied specification and diff
 This project is a standalone CLI: it does not depend on, invoke, or run inside
 Codex CLI. The handoff is manual and artifact-based.
 
+Codex CLI is one of the Part A tools documented for Issue #2. In this companion
+workflow, Codex performs the implementation and correction passes, while this
+standalone reviewer independently evaluates the manually staged artifact.
+
 A verified workflow was exercised end to end:
 
 1. Codex CLI, configured to use Hy3 through TokenHub, implemented a change from
@@ -104,6 +110,9 @@ Codex edited only the intended implementation and test files, added regression
 coverage, and reported 13 passing tests after the corrective pass.
 
 ### Independent Hy3 staged-diff review
+
+The image below is a terminal-style summary card composed from the verified first
+review pass for readability; it is not a verbatim terminal capture.
 
 ![Hy3 Reviewer identifying a requirement gap in the staged Codex diff](docs/assets/codex-workflow-review.png)
 

@@ -12,6 +12,10 @@
 > The report below is preserved as generated. Like any model-generated review,
 > its findings require human adjudication.
 
+> **Encoding note:** The four `鈥?` sequences below are retained as capture
+> artifacts. Without the original response bytes, they have not been
+> reconstructed.
+
 # Hy3 PR Readiness Report
 
 ## Executive Verdict
