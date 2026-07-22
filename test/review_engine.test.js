@@ -1,22 +1,25 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { buildOfflineResult, createOfflineProvider } = require('../lib/offline_provider');
 const { REPAIR_TIMEOUT_MS, reviewArtifacts } = require('../lib/review_engine');
 
-const SPEC = 'R1: Return one.\nR2: Add a test.';
-const DIFF = [
-  'diff --git a/src/one.js b/src/one.js',
-  'new file mode 100644',
-  '--- /dev/null',
-  '+++ b/src/one.js',
-  '@@ -0,0 +1,2 @@',
-  '+return 1;',
-  '+testOne();',
-  ''
-].join('\n');
+function loadFixture(id) {
+  const directory = path.resolve(__dirname, '..', 'samples', 'offline', id);
+  return {
+    specification: fs.readFileSync(path.join(directory, 'spec.md'), 'utf8'),
+    diff: fs.readFileSync(path.join(directory, 'change.diff'), 'utf8')
+  };
+}
+
+const COMPLIANT_FIXTURE = loadFixture('compliant');
+const MISSING_TESTS_FIXTURE = loadFixture('missing-tests');
+const SPEC = COMPLIANT_FIXTURE.specification;
+const DIFF = COMPLIANT_FIXTURE.diff;
 
 test('validated result, Markdown, JSON, and provenance describe the same review', async () => {
   const events = [];
@@ -138,8 +141,8 @@ test('offline streaming is deterministic and traverses the same chunk callback p
   async function execute() {
     const chunks = [];
     const reviewed = await reviewArtifacts({
-      specification: SPEC,
-      diff: DIFF,
+      specification: MISSING_TESTS_FIXTURE.specification,
+      diff: MISSING_TESTS_FIXTURE.diff,
       provider: createOfflineProvider({ fixture: 'missing-tests' }),
       mode: 'offline',
       model: 'hy3-offline-fake',

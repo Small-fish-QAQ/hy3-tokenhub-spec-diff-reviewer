@@ -8,7 +8,6 @@ const {
   prepareReviewInputs,
   validateEvidenceGrounding
 } = require('../lib/evidence');
-const { buildOfflineResult } = require('../lib/offline_provider');
 
 const SPEC = '# Contract\r\n\r\nR1: Return one.\r\nR2: Add a test.\r\n';
 const DIFF = [
@@ -25,7 +24,40 @@ const DIFF = [
 
 function preparedAndResult() {
   const prepared = prepareReviewInputs(SPEC, DIFF);
-  return { prepared, result: buildOfflineResult('compliant', prepared) };
+  const added = prepared.parsedDiff.files[0].records.filter((record) => record.side === 'added');
+  const coverage = prepared.requirements.map((requirement, index) => ({
+    requirementId: requirement.id,
+    status: 'met',
+    explanation: 'Synthetic evidence-validator fixture.',
+    evidence: [
+      {
+        source: 'spec',
+        requirementId: requirement.id,
+        startLine: requirement.line,
+        endLine: requirement.line,
+        quote: requirement.rawLine
+      },
+      {
+        source: 'diff',
+        path: added[index].path,
+        side: added[index].side,
+        startLine: added[index].line,
+        endLine: added[index].line,
+        quote: added[index].content
+      }
+    ]
+  }));
+  return {
+    prepared,
+    result: {
+      verdict: 'ready',
+      summary: 'Synthetic evidence-validator fixture.',
+      coverage,
+      findings: [],
+      missingTests: [],
+      uncertainties: []
+    }
+  };
 }
 
 test('input preparation normalizes line endings, assigns stable requirements, and parses diff locations', () => {
