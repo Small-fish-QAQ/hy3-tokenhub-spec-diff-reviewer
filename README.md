@@ -1,362 +1,203 @@
-# Hy3 TokenHub Spec-to-Diff Reviewer
+# Codex + Hy3 Evidence-Grounded Spec Diff Reviewer
 
-[![CI](https://github.com/Small-fish-QAQ/hy3-tokenhub-spec-diff-reviewer/actions/workflows/ci.yml/badge.svg)](https://github.com/Small-fish-QAQ/hy3-tokenhub-spec-diff-reviewer/actions/workflows/ci.yml)
-![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-339933?logo=nodedotjs&logoColor=white)
-[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
+**Does the staged implementation satisfy the written specification?**
 
-**Turn a written specification and a unified diff into a structured Markdown PR-readiness review with Hy3 through Tencent Cloud TokenHub.**
+Codex modifies code → a human stages the intended diff → the repository workflow invokes Hy3 → local code validates the structured result and every cited location → Markdown and JSON report **READY**, **NOT READY**, or **NEEDS INFORMATION** with requirement coverage, P0–P3 findings, missing tests, uncertainties, and verifiable provenance.
 
-This focused, read-only Node.js CLI answers one practical question: does the proposed change satisfy the written requirements? It reviews only the artifacts you provide and does not edit, stage, commit, or push source code.
+The reusable review engine is a standalone CLI. Its primary issue-2 workflow is invoked by Codex CLI after a developer stages a change. It is not a native Codex extension and never edits source files or Git state.
 
-Per Issue #2's capability list, this showcase exercises Hy3's long-form structured generation and evidence-grounded analysis of a written specification and unified diff. It does not claim native tool calling, repository access, or an autonomous agent loop.
+![Offline browser review showing NOT READY, requirement coverage, evidence, and validation](docs/assets/browser/review-console-1440x900.png)
 
-[Open the 31-second demo](docs/assets/hy3-spec-to-diff-demo.mp4) | [Read the checked-in example report](docs/examples/sample-pr-readiness-report.md)
+_Real local Chrome capture at 1440×900 using the deterministic **OFFLINE / FAKE** provider._
 
-| Capability | Summary |
-| --- | --- |
-| Flexible input | Review a diff file, piped standard input, or only the changes staged in Git. |
-| Structured output | Get an executive verdict, requirement coverage, P0-P3 findings, missing tests, uncertainties, and next steps. |
-| Terminal-friendly execution | Stream Markdown by default, choose non-streaming mode, set a timeout, cancel with `Ctrl+C`, or save a completed report. |
-| Local safeguards | Enforce input limits, protect spec and diff files from output collisions, publish reports atomically, detect length-truncated responses, and redact credentials from expected errors. |
-| Offline verification | Run the test suite without a TokenHub key or live service request; CI exercises the declared minimum compatibility target, Node.js 18, and Node.js 24. |
+## One-minute path
 
-## See It in Action
-
-[![Hy3 Spec-to-Diff Reviewer streaming preview](docs/assets/hy3-spec-to-diff-preview.gif)](docs/assets/hy3-spec-to-diff-demo.mp4)
-
-The 12-second preview shows the CLI reading a specification and diff, streaming a
-structured Hy3 review, and surfacing requirement-level findings.
-
-### Complete 31-second demo
-
-https://github.com/user-attachments/assets/93667341-2cd8-4a30-9b40-0c7ec7eed03b
-
-[Open the versioned MP4](docs/assets/hy3-spec-to-diff-demo.mp4)
-
-A completed review can also be saved and rendered as Markdown:
-
-![Rendered Hy3 PR-readiness report](docs/assets/hy3-spec-to-diff-report.png)
-
-The animated preview is extracted from the complete demo recording. The rendered
-report screenshot comes from a separate real TokenHub run, so exact model wording
-may differ.
-
-[Read the verified live PR-readiness report](docs/examples/sample-pr-readiness-report.md).
-It was generated from a real staged Git diff produced by Codex CLI and is
-preserved with an explicit human-adjudication note.
-
-## Quick Start
-
-You need:
-
-- Node.js 18 or later; and
-- a Tencent Cloud TokenHub API key with access to the `hy3` model on the Guangzhou / China-mainland service boundary.
-
-Node.js 18 is retained as the project's minimum compatibility target.
-
-Install the existing dependency versions from PowerShell:
+No credential is needed:
 
 ```powershell
-npm.cmd install
+npm ci
+npm run demo:offline
 ```
 
-Create a private local environment file from the tracked placeholder:
+The deterministic sample contains a boundary defect and missing test. It uses the same input preparation, streaming-shaped provider path, JSON contract, evidence validation, renderer, and atomic output bundle as live mode. Every terminal stage and artifact is labelled **OFFLINE / FAKE**.
+
+For the focused local browser console:
 
 ```powershell
-Copy-Item .env.example .env
+npm run serve
+# Open the printed loopback URL, load the sample, and select Start review.
 ```
 
-Add your key to `.env` locally, or provide `TOKENHUB_API_KEY` through your shell or secret manager. Do not commit or share the key.
+The existing [31-second live TokenHub recording](docs/assets/hy3-spec-to-diff-demo.mp4) is real evidence for the original CLI core, but it predates the structured/evidence/browser upgrades. See [the recording plan](docs/DEMO.md) for the updated 50–55 second offline or live capture; do not present an offline result as live.
 
-Run the bundled review:
+## Codex staged-diff workflow
+
+Codex uses the repository's supported [`AGENTS.md`](AGENTS.md) guidance to invoke a thin wrapper after the intended change is staged:
 
 ```powershell
-npm.cmd run review:sample
+npm run review:staged -- --spec examples/spec.md --output reports/review.md
 ```
 
-Or invoke the CLI directly:
-
-```powershell
-node .\hy3_showcase.js diff-review `
-  --spec .\samples\issue.md `
-  --diff .\samples\change.diff
-```
-
-These commands make a live request. The complete supplied specification and diff are sent to the remote TokenHub service.
-
-> [!NOTE]
-> The bundled sample intentionally contains an incomplete implementation, so `Not ready` is the expected verdict. Exact wording and individual findings may vary between runs.
-
-## Codex Companion Workflow
-
-This project is a standalone CLI: it does not depend on, invoke, or run inside
-Codex CLI. The handoff is manual and artifact-based.
-
-Codex CLI is one of the Part A tools documented for Issue #2. In this companion
-workflow, Codex performs the implementation and correction passes, while this
-standalone reviewer independently evaluates the manually staged artifact.
-
-A verified workflow was exercised end to end:
-
-1. Codex CLI, configured to use Hy3 through TokenHub, implemented a change from
-   written requirements.
-2. The resulting implementation and tests were inspected and staged in Git.
-3. This reviewer compared the same requirements with the staged diff.
-4. The first review identified a real malformed-`change.files` validation gap.
-5. Human review found an additional high-risk reviewer-selection defect that the
-   model review missed.
-6. Codex fixed both defects, and the final local suite passed 13/13 tests.
-
-### Codex implementation and correction pass
-
-![Codex CLI with Hy3 completing the implementation and regression fixes](docs/assets/codex-workflow-generate.png)
-
-Codex edited only the intended implementation and test files, added regression
-coverage, and reported 13 passing tests after the corrective pass.
-
-### Independent Hy3 staged-diff review
-
-The image below is a terminal-style summary card composed from the verified first
-review pass for readability; it is not a verbatim terminal capture.
-
-![Hy3 Reviewer identifying a requirement gap in the staged Codex diff](docs/assets/codex-workflow-review.png)
-
-The checked-in
-[verified report](docs/examples/sample-pr-readiness-report.md) preserves the
-first live review pass. It correctly identified one specification violation,
-but it did not replace deterministic tests or human judgment.
+The wrapper adds only `--git` and calls the same exported CLI entrypoint as direct use. The reviewer executes this read-only command:
 
 ```text
-Written requirements
-        |
-        v
-Codex CLI + Hy3 implementation pass
-        |
-        v
-Human inspection + staged Git diff
-        |
-        v
-Hy3 TokenHub Spec-to-Diff Reviewer
-        |
-        v
-Markdown report + tests + human adjudication
+git diff --cached --no-ext-diff --no-textconv --no-color
 ```
 
-The reviewer receives only the specification and diff explicitly supplied to
-it. It does not gain repository access from Codex, validate a pull request
-automatically, apply fixes, or create an agent loop.
+An empty staged diff fails clearly. The reviewer never falls back to unstaged files, stages changes, commits, resets, checks out files, or changes the working tree. The human owns the specification, staged scope, test execution, security review, and merge decision.
 
-## Report Structure
+Full boundary and command details: [Codex workflow guide](docs/CODEX_WORKFLOW.md).
 
-The prompt contract asks Hy3 to return only Markdown with this structure:
+## Live TokenHub setup
 
-- `Executive Verdict`: exactly one of `Ready`, `Ready after fixes`, `Not ready`, or `Uncertain`;
-- `Requirement Coverage`: a requirement-by-requirement table using `Met`, `Partially met`, `Not met`, or `Uncertain`;
-- `Findings`: evidence-grounded P0-P3 sections, using `None identified` when a severity has no supported finding;
-- `Missing Tests`;
-- `Uncertainties`; and
-- `Recommended Next Steps`.
+Create a region-scoped TokenHub key and keep it in a local secret store or `.env` (which is ignored):
 
-The review prompt tells the model to use only the supplied artifacts, cite evidence when available, avoid inventing repository context, and distinguish missing evidence from a definite failure.
+```dotenv
+TOKENHUB_API_KEY=your_tokenhub_api_key_here
+HY3_BASE_URL=https://tokenhub.tencentmaas.com/v1
+HY3_MODEL=hy3
+```
 
-## TokenHub Configuration and Service Boundary
+| Region | Base URL | Status here |
+| --- | --- | --- |
+| Guangzhou / China mainland | `https://tokenhub.tencentmaas.com/v1` | Safe default; previously live-tested |
+| Singapore / global | `https://tokenhub-intl.tencentmaas.com/v1` | Officially documented; not tested in this repository |
 
-The reviewer uses a fixed configuration:
-
-- endpoint: `https://tokenhub.tencentmaas.com/v1/chat/completions`
-- model: `hy3`
-- intended service boundary: Guangzhou / China-mainland
-
-Use a TokenHub key provisioned for that same boundary. The CLI does not offer an endpoint or region-selection option.
-
-Singapore / global compatibility has not been verified. The documented manual verification covers streaming and non-streaming execution against the Guangzhou service boundary only.
-
-Credentials are loaded lazily. Help commands, argument errors, input-validation failures, and output-path collision failures do not require an API key or make a TokenHub request.
-
-## CLI Reference
-
-Show the supported command and options:
+The key and endpoint must belong to the same region. Tencent's official docs support authenticated `GET /v1/models`, so preflight sends no specification or diff:
 
 ```powershell
-node .\hy3_showcase.js --help
-node .\hy3_showcase.js diff-review --help
+npm run check
 ```
 
-Command shape:
+It distinguishes endpoint failure, authentication failure, unavailable/offline model, explicit region errors, malformed responses, and timeout. A generic `401` is reported as authentication failure with a region diagnostic hint; it is not falsely claimed as proven region mismatch.
 
-```text
-node hy3_showcase.js diff-review --spec <path> (--diff <path> | --diff - | --git) [options]
-```
+Official references: [API domains and model list](https://cloud.tencent.com/document/product/1823/130078), [API-key regions and access scope](https://cloud.tencent.com/document/product/1823/130090), [Hy3 invocation](https://cloud.tencent.com/document/product/1823/132252), and [error codes](https://cloud.tencent.com/document/product/1823/131595).
 
-`--spec <path>` must point to a non-empty written issue, requirement set, or other specification. Choose exactly one diff source:
-
-- `--diff <path>` reads a unified diff file;
-- `--diff -` reads a unified diff from standard input; or
-- `--git` reads only `git diff --cached`.
-
-Available options:
-
-| Option | Behavior |
-| --- | --- |
-| `--output <path>` | Publish the completed Markdown report after a successful response. |
-| `--timeout <seconds>` | Set a whole-number request timeout from 1 to 3600 seconds; default 180. |
-| `--no-stream` | Use the normal non-streaming response path. |
-| `--help` | Show command help. |
-
-### Review Files
+Then run one bounded live review:
 
 ```powershell
-node .\hy3_showcase.js diff-review `
-  --spec .\path\to\issue.md `
-  --diff .\path\to\change.diff
+npm run review:staged -- --spec examples/spec.md --output reports/review.md
 ```
 
-### Read a Diff from Standard Input
+The repository includes the [sanitized record of one bounded live verification](docs/evidence/live-verification-2026-07-22.md). It records the real finish reason, request-ID presence, hashes, and validation outcome without retaining credentials or absolute paths.
+
+## Direct CLI
+
+The standalone core remains available outside Codex:
 
 ```powershell
-git diff | node .\hy3_showcase.js diff-review `
-  --spec .\path\to\issue.md `
-  --diff -
+# File inputs
+node hy3_showcase.js diff-review --spec issue.md --diff change.diff
+
+# Standard-input diff
+git diff | node hy3_showcase.js diff-review --spec issue.md --diff -
+
+# Staged changes only
+node hy3_showcase.js diff-review --spec issue.md --git --output reports/review.md
+
+# Deterministic fixture
+node hy3_showcase.js diff-review --offline --fixture missing-tests `
+  --spec samples/offline/missing-tests/spec.md `
+  --diff samples/offline/missing-tests/change.diff
 ```
 
-### Review Staged Git Changes
+Use `--no-stream`, `--timeout <1-3600>`, or one of the six offline fixtures: `compliant`, `missing-behavior`, `missing-tests`, `security`, `ambiguous`, and `prompt-injection`. Run `node hy3_showcase.js diff-review --help` for the complete reference.
+
+## Review contract and evidence
+
+Provider text is never treated as a completed Markdown report. Hy3 must return one JSON object with:
+
+```json
+{
+  "verdict": "ready | not_ready | needs_information",
+  "summary": "...",
+  "coverage": [{
+    "requirementId": "R1",
+    "status": "met | partial | missing | uncertain",
+    "explanation": "...",
+    "evidence": []
+  }],
+  "findings": [{
+    "severity": "P0 | P1 | P2 | P3",
+    "title": "...",
+    "explanation": "...",
+    "evidence": [],
+    "recommendation": "..."
+  }],
+  "missingTests": [],
+  "uncertainties": []
+}
+```
+
+Runtime validation rejects malformed JSON, missing/unknown fields, unknown enums, empty findings, truncation, content filtering, and unexpected finish reasons. Schema or evidence errors allow **one** repair call with the validation errors, bounded invalid output, and the immutable evidence catalog. Repair has its own 30-second ceiling and never loops.
+
+Before a provider call, local code:
+
+- normalizes UTF-8 line endings without stripping artifact content;
+- assigns stable requirement IDs and specification lines;
+- parses unified-diff paths plus added, deleted, and context locations;
+- hashes the exact normalized specification and diff with SHA-256; and
+- represents the artifacts as JSON data separated from system/task instructions.
+
+After generation, local evidence validation rejects nonexistent requirement IDs, paths not in the reviewed diff, out-of-range or non-contiguous lines, and quotes that do not match the normalized input. `met` and `partial` coverage require both specification and diff evidence; a genuinely missing requirement can cite the specification and state that implementation evidence was not found.
+
+These checks prove citation integrity, not semantic correctness. Hy3 conclusions remain advisory.
+
+## Output and provenance
+
+`--output reports/review.md` transactionally publishes:
+
+- `reports/review.md` — human-readable verdict, coverage, findings, missing tests, uncertainties, evidence, and provenance;
+- `reports/review.json` — the same validated result plus its compact provenance manifest.
+
+Both files are staged, synchronized, and atomically renamed. A failed validation, cancellation, timeout, provider failure, or publication error leaves no partial new report and rolls an existing bundle back.
+
+Provenance includes tool/version, live or offline mode, model, sanitized provider host, streaming mode, timestamp, exact input hashes and counts, finish reason, schema/evidence status, safe request ID when provided, repair status, and output-format version. It excludes API keys, authorization headers, environment dumps, absolute user paths, and source content beyond validated evidence quotes.
+
+## Reliability and security
+
+- One total request timeout and propagated `AbortSignal`; Ctrl+C exits with code 130.
+- At most two retries for temporary network errors, HTTP 408/429, and documented retryable 5xx codes.
+- Bounded exponential backoff with jitter; valid `Retry-After` is honored within the total bounded window.
+- No retries for bad credentials, unavailable/unsupported models, malformed requests, local validation failures, cancellation, or schema repair errors.
+- Secrets are redacted from HTTP bodies, nested provider errors, retry failures, preflight, browser errors, and top-level CLI errors.
+- Specification and diff content is inert data. Artifact text cannot choose paths, provider settings, output locations, permissions, network requests, or shell commands.
+- Prompt-injection risk is reduced through JSON data boundaries, no artifact-driven tools, bounded inputs, strict schema validation, and local evidence validation; it is not eliminated.
+
+## Browser console
+
+The browser is a thin loopback-only shell over the same `reviewArtifacts` engine—there is no second review pipeline. It provides:
+
+- three-column specification, unified diff, and structured result layout;
+- bundled sample, Offline / Live mode, immediate progress, cancellation, and duplicate/stale-response prevention;
+- verdict, coverage matrix, P0–P3 findings, expandable evidence, missing tests, uncertainties, hashes, and validation status;
+- client-side Markdown/JSON downloads of the already validated response; and
+- associated labels, keyboard operation, visible focus, `aria-live` status, disabled states, readable contrast, responsive layout, and reduced-motion support.
+
+The key stays server-side. The server binds to loopback by default, checks Host/origin, serves a fixed file whitelist, enforces request and core artifact limits, returns no raw provider stack trace, and offers no arbitrary file or shell endpoint.
+
+## Offline evaluation and tests
 
 ```powershell
-node .\hy3_showcase.js diff-review `
-  --spec .\path\to\issue.md `
-  --git
+npm run lint
+npm test
+npm run eval:offline
 ```
 
-`--git` uses only the staged diff and never falls back to unstaged changes. If the staged diff is empty, stage the intended changes, use `--diff <path>`, or pipe a diff with `--diff -`.
+The six self-authored, license-safe regression cases measure schema validity, expected verdict/coverage, citation validity, fabricated-evidence rejection, secret redaction, prompt-injection boundaries, deterministic output, and absence of partial output after failure/cancellation. This small corpus is regression evidence, not a claim of benchmark superiority. Live evaluation never runs automatically in CI.
 
-## Streaming, Output, Timeout, and Cancellation
+## Scope and limitations
 
-Streaming is enabled by default. Generated Markdown is written incrementally to stdout, while input progress, request diagnostics, and saved-path notices go to stderr. This separation allows report content to be redirected without mixing in status messages.
+This repository intentionally has no database, login, accounts, history system, RAG, vector store, autonomous coding loop, automatic staging/commits, PR commenting, or cloud deployment layer.
 
-Use the non-streaming path when needed:
+Remaining model-dependent limits:
 
-```powershell
-node .\hy3_showcase.js diff-review `
-  --spec .\samples\issue.md `
-  --diff .\samples\change.diff `
-  --no-stream
-```
-
-The matching convenience command is:
-
-```powershell
-npm.cmd run review:sample:no-stream
-```
-
-### Save a Completed Report
-
-```powershell
-node .\hy3_showcase.js diff-review `
-  --spec .\samples\issue.md `
-  --diff .\samples\change.diff `
-  --output .\reports\hy3-review.md
-```
-
-Parent directories are created when needed. Publication happens only after a successful, complete response and uses a temporary file plus rename, so a failed, cancelled, or truncated request does not expose a partial new report or replace an existing report.
-
-The output path may replace an unrelated existing report after success. It is rejected when it resolves to the specification or a file-based diff input, including normalized and real-path aliases, so those inputs cannot be overwritten accidentally.
-
-### Truncated Responses
-
-The CLI checks the model finish reason before treating a review as complete. If TokenHub reports:
-
-```text
-finish_reason: "length"
-```
-
-the command exits non-zero and asks the user to reduce the input scope and retry. No `--output` report is published, and an existing report at that path remains unchanged. Streaming text already displayed may be partial; incomplete non-streaming text is not printed.
-
-The reviewer currently requests up to 1,800 output tokens per review. This fixed output budget cannot be changed through the CLI and is not a general TokenHub service limit.
-
-### Timeout and Cancellation
-
-`--timeout <seconds>` defaults to 180 seconds and accepts values from 1 through 3600.
-
-Press `Ctrl+C` to abort an in-progress request. The CLI exits with cancellation status 130 instead of leaving the request running in the background.
-
-## Local Input Safeguards
-
-Before credentials are loaded or TokenHub is contacted, the CLI rejects empty inputs and enforces these byte limits:
-
-| Input | Maximum |
-| --- | ---: |
-| Specification | 512 KiB |
-| Diff | 512 KiB |
-| Combined specification and diff | 1 MiB |
-
-These are local safeguards for predictable runs, not TokenHub service limits.
-
-For staged review, the Git command disables external diff drivers, text conversion, and colored output. Reading files, standard input, and staged changes does not modify source code or Git state.
-
-## Security and Privacy
-
-- The complete supplied specification and diff are sent to the remote Tencent Cloud TokenHub service. Review inputs for secrets, personal data, proprietary code, and other sensitive material before running the command.
-- Generated reports may repeat sensitive material from those inputs. Inspect a report before saving or sharing it.
-- Keep `TOKENHUB_API_KEY` out of source files, samples, logs, screenshots, and generated reports. `.gitignore` excludes `.env`.
-- Expected error messages are sanitized, known and credential-shaped authorization values are redacted, and response headers are not printed. These measures do not make arbitrary inputs or generated reports safe to share.
-- With respect to source and Git state, the reviewer is read-only: it reads only the explicitly supplied files, standard-input diff, or staged Git diff, and it does not apply patches, edit code, stage files, commit, or push.
-- `--output` is the sole user-facing operation that writes a report.
-- The fixed TokenHub endpoint avoids accepting an arbitrary request URL from the command line.
-
-## Limitations
-
-- Hy3 sees only the supplied specification and unified diff.
-- It cannot verify omitted surrounding code, runtime behavior, or test results.
-- Findings can be incomplete or mistaken; missing evidence is not proof that an implementation is defective.
-- A generated report is advisory, not proof of security, correctness, or requirement completion.
-- Use the report alongside human review and deterministic tests.
-- The CLI cannot select a different TokenHub region or endpoint, and Singapore / global compatibility remains unverified.
-- The reviewer does not modify code, apply changes, open pull requests, or approve or gate merges.
-
-## Offline Tests and CI
-
-The test suite uses injected request implementations and local fixtures. It does not require a TokenHub key and does not make a live TokenHub request:
-
-```powershell
-npm.cmd test
-```
-
-Coverage includes:
-
-- argument parsing and help;
-- file, stdin, and staged-Git input;
-- path normalization and input/output collision protection;
-- atomic report publication;
-- streaming and non-streaming responses;
-- SSE parsing and chunk boundaries;
-- timeout and cancellation behavior;
-- truncated-response handling;
-- secret redaction and API-key normalization; and
-- the review prompt contract.
-
-The GitHub Actions workflow runs `npm ci` and this offline suite on Node.js 18 and Node.js 24 for every push and pull request. It verifies the reviewer project itself; it does not turn generated reviews into an automated merge gate.
-
-## Deliberate Scope
-
-The project stays focused on one artifact-driven workflow:
-
-```text
-Specification + Diff -> Hy3 Review -> Markdown Report
-```
-
-It deliberately does not implement:
-
-- automated code modification or patch application;
-- repository scanning;
-- automatic Codex handoffs or agent loops;
-- Git staging, committing, or pushing;
-- reviewer-driven CI merge gating; or
-- a web interface.
-
-This narrow scope keeps the CLI understandable, auditable, and reusable.
+- local evidence checks cannot prove behavioral correctness or detect every missing semantic relationship;
+- requirement extraction is deterministic Markdown heuristics, not a formal requirements language;
+- a listed TokenHub model may still be inaccessible to a key with different scope, which an actual live call can reveal;
+- transient provider behavior and model output quality remain external dependencies; and
+- the updated browser/Codex workflow media still requires an honest manual recording (offline if no credential, live only after successful preflight).
 
 ## License
 
-This project is distributed under the [ISC License](LICENSE).
-
-The software is provided as-is, without warranty.
+[ISC](LICENSE)

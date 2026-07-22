@@ -24,5 +24,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run syntax checks
+        run: npm run lint
+
+      - name: Check documentation links
+        run: npm run docs:check
+
+      - name: Verify browser bundle
+        run: npm run build:browser
+
       - name: Run tests
         run: npm test
+
+      - name: Run deterministic offline evaluation
+        run: npm run eval:offline
