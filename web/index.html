@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="A focused Codex + Hy3 evidence-grounded specification-to-diff review console.">
+  <title>Codex + Hy3 Spec Diff Reviewer</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to review workspace</a>
+
+  <header class="app-header">
+    <div class="brand-block">
+      <p class="eyebrow">Evidence-grounded review</p>
+      <h1>Codex <span aria-hidden="true">+</span><span class="sr-only"> and </span> Hy3 Spec Diff Reviewer</h1>
+      <p class="tagline">Does this staged implementation satisfy the written specification?</p>
+    </div>
+    <div class="status-badges" aria-label="Reviewer status">
+      <span class="badge badge-offline" id="mode-badge">OFFLINE / FAKE</span>
+      <span class="badge" id="model-badge">model: loading</span>
+      <span class="badge badge-muted" id="validation-badge">validation: pending</span>
+    </div>
+  </header>
+
+  <main id="workspace" class="workspace" tabindex="-1">
+    <section class="control-bar" aria-labelledby="controls-heading">
+      <div>
+        <p class="eyebrow" id="controls-heading">Review controls</p>
+        <p class="control-hint" id="privacy-note">Only the text in these two editors is reviewed. Offline mode makes no provider request.</p>
+      </div>
+      <div class="control-actions">
+        <div class="field compact-field">
+          <label for="mode">Mode</label>
+          <select id="mode" aria-describedby="mode-help">
+            <option value="offline">Offline / Fake</option>
+            <option value="live">Live Hy3</option>
+          </select>
+          <span class="sr-only" id="mode-help">Live mode uses the API key configured only on the local server.</span>
+        </div>
+        <button class="button button-secondary" id="load-sample" type="button">Load sample</button>
+        <button class="button button-primary" id="start-review" type="button">Start review</button>
+        <button class="button button-danger" id="cancel-review" type="button" disabled>Cancel</button>
+      </div>
+    </section>
+
+    <div class="offline-banner" id="offline-banner" role="note">
+      <strong>OFFLINE / FAKE</strong>
+      <span>Deterministic local evidence. No Hy3 service call is made.</span>
+    </div>
+
+    <section class="review-grid" aria-label="Specification, diff, and result">
+      <article class="panel input-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-index">01</p>
+            <h2><label for="specification">Specification</label></h2>
+          </div>
+          <span class="input-count" id="spec-count">0 lines</span>
+        </div>
+        <p class="panel-help" id="spec-help">Paste the exact written requirements. Artifact instructions are treated as inert text.</p>
+        <textarea id="specification" aria-describedby="spec-help spec-count" spellcheck="false" placeholder="Describe the required behavior…"></textarea>
+      </article>
+
+      <article class="panel input-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="panel-index">02</p>
+            <h2><label for="diff">Unified diff</label></h2>
+          </div>
+          <span class="input-count" id="diff-count">0 lines</span>
+        </div>
+        <p class="panel-help" id="diff-help">Paste a unified diff, or launch the server through the staged-diff CLI workflow.</p>
+        <textarea id="diff" aria-describedby="diff-help diff-count" spellcheck="false" placeholder="diff --git a/src/example.js b/src/example.js…"></textarea>
+      </article>
+
+      <article class="panel result-panel" id="result-panel">
+        <div class="panel-heading result-heading">
+          <div>
+            <p class="panel-index">03</p>
+            <h2 id="result-title" tabindex="-1">Review result</h2>
+          </div>
+          <div class="download-actions" id="download-actions" hidden>
+            <button class="button button-small" id="download-markdown" type="button">Download Markdown</button>
+            <button class="button button-small" id="download-json" type="button">Download JSON</button>
+          </div>
+        </div>
+
+        <div class="run-status" id="run-status" role="status" aria-live="polite" aria-atomic="true">
+          Load the bundled sample or paste two artifacts to begin.
+        </div>
+        <div class="error-box" id="error-box" role="alert" hidden></div>
+
+        <ol class="progress-list" id="progress-list" aria-label="Review progress"></ol>
+
+        <div class="empty-result" id="empty-result">
+          <div class="empty-mark" aria-hidden="true">R3</div>
+          <p>A completed review will show its verdict, coverage, findings, evidence, missing tests, uncertainties, validation, and input hashes here.</p>
+        </div>
+
+        <div class="review-output" id="review-output" hidden>
+          <section class="verdict-card" id="verdict-card" aria-labelledby="verdict-heading">
+            <p class="eyebrow">Advisory verdict</p>
+            <h3 id="verdict-heading"></h3>
+            <p id="verdict-summary"></p>
+          </section>
+
+          <section class="result-section" aria-labelledby="coverage-heading">
+            <div class="section-heading">
+              <h3 id="coverage-heading">Requirement coverage</h3>
+              <span id="coverage-summary"></span>
+            </div>
+            <div class="table-scroll" tabindex="0" aria-label="Scrollable requirement coverage table">
+              <table>
+                <thead>
+                  <tr><th scope="col">Requirement</th><th scope="col">Status</th><th scope="col">Explanation</th><th scope="col">Evidence</th></tr>
+                </thead>
+                <tbody id="coverage-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="result-section" aria-labelledby="findings-heading">
+            <div class="section-heading">
+              <h3 id="findings-heading">Findings</h3>
+              <span id="findings-summary"></span>
+            </div>
+            <div id="findings-list" class="finding-list"></div>
+          </section>
+
+          <section class="result-section split-section">
+            <div>
+              <h3 id="missing-tests-heading">Missing tests</h3>
+              <div id="missing-tests" aria-labelledby="missing-tests-heading"></div>
+            </div>
+            <div>
+              <h3 id="uncertainties-heading">Uncertainties</h3>
+              <div id="uncertainties" aria-labelledby="uncertainties-heading"></div>
+            </div>
+          </section>
+
+          <section class="result-section" aria-labelledby="provenance-heading">
+            <div class="section-heading">
+              <h3 id="provenance-heading">Verifiable provenance</h3>
+              <span class="validation-pass" id="local-validation">schema passed · evidence passed</span>
+            </div>
+            <dl class="provenance-grid" id="provenance-grid"></dl>
+          </section>
+
+          <p class="advisory-note">Advisory only: local checks verify structure and citation locations, not semantic correctness. Prompt-injection risk is reduced, not eliminated.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    <span>Reusable CLI core</span>
+    <span aria-hidden="true">·</span>
+    <span>Loopback-only browser shell</span>
+    <span aria-hidden="true">·</span>
+    <span>No source or Git writes</span>
+  </footer>
+</body>
+</html>
