@@ -1,0 +1,18 @@
+diff --git a/src/session.js b/src/session.js
+new file mode 100644
+index 0000000..e32c172
+--- /dev/null
++++ b/src/session.js
+@@ -0,0 +1,5 @@
++export function sessionStatus(lastSeen, now) {
++  const elapsed = now - lastSeen;
++  return elapsed > 30 * 60 * 1000 ? 'expired' : 'active';
++}
+diff --git a/test/session.test.js b/test/session.test.js
+new file mode 100644
+index 0000000..542e8de
+--- /dev/null
++++ b/test/session.test.js
+@@ -0,0 +1,2 @@
++import { sessionStatus } from '../src/session.js';
++test('keeps recent sessions active', () => expect(sessionStatus(1, 2)).toBe('active'));

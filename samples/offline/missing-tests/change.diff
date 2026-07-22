@@ -1,0 +1,10 @@
+diff --git a/src/slugify.js b/src/slugify.js
+new file mode 100644
+index 0000000..377deaf
+--- /dev/null
++++ b/src/slugify.js
+@@ -0,0 +1,5 @@
++export function slugify(title) {
++  return String(title).trim().toLowerCase().replace(/\s+/g, '-');
++}
++

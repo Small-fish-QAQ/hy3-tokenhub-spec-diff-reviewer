@@ -1,0 +1,20 @@
+diff --git a/src/greet.js b/src/greet.js
+new file mode 100644
+index 0000000..21a3b6c
+--- /dev/null
++++ b/src/greet.js
+@@ -0,0 +1,5 @@
++export function greet(name) {
++  const clean = String(name).trim();
++  return clean ? `Hello, ${clean}!` : 'Hello, stranger!';
++}
+diff --git a/test/greet.test.js b/test/greet.test.js
+new file mode 100644
+index 0000000..b01daba
+--- /dev/null
++++ b/test/greet.test.js
+@@ -0,0 +1,4 @@
++import { greet } from '../src/greet.js';
++test('greets a name', () => expect(greet(' Ada ')).toBe('Hello, Ada!'));
++test('handles empty input', () => expect(greet('  ')).toBe('Hello, stranger!'));
++
