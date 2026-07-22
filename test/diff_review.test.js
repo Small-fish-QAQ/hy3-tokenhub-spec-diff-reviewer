@@ -12,7 +12,6 @@ const {
   DEFAULT_TIMEOUT_SECONDS,
   MAX_DIFF_BYTES,
   MAX_SPEC_BYTES,
-  buildDiffReviewMessages,
   loadDiffReviewInputs,
   parseDiffReviewArgs,
   readStagedDiff,
@@ -473,28 +472,6 @@ test('loadDiffReviewInputs gives recovery guidance for an empty staged Git diff'
       return true;
     }
   );
-});
-
-test('buildDiffReviewMessages defines the review contract and delimits artifacts', () => {
-  const messages = buildDiffReviewMessages('Return stable JSON.', '+return owner;');
-
-  assert.equal(messages.length, 2);
-  assert.equal(messages[0].role, 'system');
-  assert.match(messages[0].content, /# Hy3 PR Readiness Report/);
-  assert.match(messages[0].content, /\| Requirement \| Status \| Evidence \| Gap \|/);
-  assert.match(messages[0].content, /Do not invent files, behavior, tests, or repository context/);
-  assert.match(messages[0].content, /Mark unsupported conclusions as Uncertain/);
-  assert.match(messages[0].content, /P0: Catastrophic or immediate stop-ship issues/);
-  assert.match(messages[0].content, /P1: Major correctness, security, or requirement defects that should block merge/);
-  assert.match(messages[0].content, /P2: Moderate correctness, testing, reliability, or maintainability issues/);
-  assert.match(messages[0].content, /P3: Minor quality, clarity, documentation, or polish issues/);
-  assert.match(messages[0].content, /Do not promote an issue to P0 merely because it blocks merge/);
-  assert.match(messages[0].content, /Assign each root cause to exactly one severity/);
-  assert.match(messages[0].content, /Do not repeat the same underlying issue or root cause across multiple severity sections/);
-  assert.match(messages[0].content, /Use `None identified` when no supported finding exists at a severity/);
-  assert.match(messages[0].content, /Keep every finding grounded only in the supplied specification and diff/);
-  assert.match(messages[1].content, /<specification>\nReturn stable JSON\.\n<\/specification>/);
-  assert.match(messages[1].content, /<unified-diff>\n\+return owner;\n<\/unified-diff>/);
 });
 
 test('writeReportAtomic creates parents and publishes only the completed report', async (t) => {

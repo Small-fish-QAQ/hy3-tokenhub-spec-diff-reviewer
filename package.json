@@ -1,17 +1,29 @@
 {
   "name": "hy3-tokenhub-spec-diff-reviewer",
-  "version": "1.0.0",
-  "description": "A small Hy3 spec-to-diff review CLI using Tencent Cloud TokenHub.",
+  "version": "1.1.0",
+  "description": "An evidence-grounded Codex + Hy3 staged-diff reviewer with deterministic offline evaluation.",
   "main": "hy3_showcase.js",
   "scripts": {
+    "lint": "node scripts/lint.js",
+    "docs:check": "node scripts/check_docs.js",
+    "build:browser": "node scripts/verify_web.js",
     "test": "node --test",
-    "review:sample": "node hy3_showcase.js diff-review --spec samples/issue.md --diff samples/change.diff",
-    "review:sample:no-stream": "node hy3_showcase.js diff-review --spec samples/issue.md --diff samples/change.diff --no-stream"
+    "test:browser": "node --test test/browser.test.js",
+    "test:browser:smoke": "node scripts/browser_smoke.js",
+    "review:staged": "node scripts/review_staged.js",
+    "check": "node hy3_showcase.js check",
+    "review:sample": "node hy3_showcase.js diff-review --spec samples/issue.md --diff samples/change.diff --output reports/sample-review.md",
+    "review:sample:no-stream": "node hy3_showcase.js diff-review --spec samples/issue.md --diff samples/change.diff --no-stream --output reports/sample-review.md",
+    "demo:offline": "node hy3_showcase.js diff-review --offline --fixture missing-behavior --spec samples/offline/missing-behavior/spec.md --diff samples/offline/missing-behavior/change.diff --output reports/offline-review.md",
+    "eval:offline": "node scripts/eval_offline.js",
+    "serve": "node hy3_showcase.js serve"
   },
   "keywords": [
     "hy3",
     "tokenhub",
-    "tencent-cloud"
+    "tencent-cloud",
+    "codex",
+    "spec-diff"
   ],
   "author": "",
   "license": "ISC",
