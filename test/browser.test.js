@@ -113,6 +113,7 @@ test('configuration and bundled sample never expose the server credential', asyn
   assert.equal(sample.fixture, 'missing-behavior');
   assert.match(sample.specification, /Session timeout/);
   assert.match(sample.diff, /^diff --git/m);
+  assert.match(sample.description, /threshold.*future timestamp/i);
   assert.equal(JSON.stringify(sample).includes(secret), false);
 });
 
@@ -150,12 +151,41 @@ test('offline browser review streams core-engine stages and a validated result',
   const completed = events.find((event) => event.type === 'result');
   assert.ok(completed);
   assert.equal(completed.review.result.verdict, 'not_ready');
+  assert.deepEqual(
+    Object.fromEntries(completed.review.result.coverage.map((item) => [item.requirementId, item.status])),
+    { R1: 'met', R2: 'met', R3: 'missing', R4: 'missing', R5: 'missing' }
+  );
+  assert.equal(
+    completed.review.result.coverage.filter((item) => item.status === 'met').length,
+    2
+  );
+  const r4 = completed.review.result.coverage.find((item) => item.requirementId === 'R4');
+  assert.ok(r4.evidence.every((evidence) => evidence.source !== 'diff'));
+  assert.equal(completed.review.result.findings.length, 2);
+  assert.ok(completed.review.result.findings.every((finding) => finding.severity === 'P1'));
+  assert.match(
+    completed.review.result.findings.map((finding) => finding.title).join('\n'),
+    /greater-than|30-minute/i
+  );
+  assert.match(
+    completed.review.result.findings.map((finding) => finding.title).join('\n'),
+    /future.*lastSeen/i
+  );
+  const missingTests = completed.review.result.missingTests
+    .map((item) => `${item.title} ${item.explanation}`)
+    .join('\n');
+  assert.match(missingTests, /29:59/);
+  assert.match(missingTests, /30:00/);
+  assert.match(missingTests, /lastSeen > now/);
   assert.equal(completed.review.provenance.mode, 'offline');
   assert.deepEqual(completed.review.provenance.validation, {
     schema: 'passed',
     evidence: 'passed'
   });
   assert.match(completed.review.markdown, /OFFLINE \/ FAKE/);
+  assert.match(completed.review.markdown, /\| R4 \| MISSING \|/);
+  assert.match(completed.review.markdown, /Strict greater-than check/);
+  assert.match(completed.review.markdown, /Future lastSeen timestamps/);
   const jsonArtifact = JSON.parse(completed.review.json);
   assert.deepEqual(jsonArtifact.result, completed.review.result);
   assert.deepEqual(jsonArtifact.provenance, completed.review.provenance);

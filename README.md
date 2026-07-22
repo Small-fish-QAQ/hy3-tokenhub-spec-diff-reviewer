@@ -19,7 +19,7 @@ npm ci
 npm run demo:offline
 ```
 
-The deterministic sample contains a boundary defect and missing test. It uses the same input preparation, streaming-shaped provider path, JSON contract, evidence validation, renderer, and atomic output bundle as live mode. Every terminal stage and artifact is labelled **OFFLINE / FAKE**.
+The deterministic sample produces **NOT READY** with **2/5 met**: R1 and R2 are met, while R3, R4, and R5 are missing. Its two P1 findings cover the strict `>` check that leaves exactly 30:00 active and the absent rejection of a future `lastSeen`; its three missing tests cover 29:59, exactly 30:00, and `lastSeen > now`. It uses the same input preparation, streaming-shaped provider path, JSON contract, evidence validation, renderer, and atomic output bundle as live mode. Every terminal stage and artifact is labelled **OFFLINE / FAKE**.
 
 For the focused local browser console:
 
@@ -184,7 +184,7 @@ npm test
 npm run eval:offline
 ```
 
-The six self-authored, license-safe regression cases measure schema validity, expected verdict/coverage, citation validity, fabricated-evidence rejection, secret redaction, prompt-injection boundaries, deterministic output, and absence of partial output after failure/cancellation. This small corpus is regression evidence, not a claim of benchmark superiority. Live evaluation never runs automatically in CI.
+The six self-authored, license-safe regression cases measure schema validity, exact verdict and per-requirement status maps, exact met counts, fixture-specific findings and missing tests, citation validity, fabricated-evidence rejection, secret redaction, prompt-injection boundaries, deterministic output, and absence of partial output after failure/cancellation. Named fixtures fail when an expected requirement or exact diff selector cannot be resolved; unknown automatic input remains uncertain instead of defaulting to met. This small corpus is regression evidence, not a claim of benchmark superiority. Live evaluation never runs automatically in CI.
 
 ## Scope and limitations
 

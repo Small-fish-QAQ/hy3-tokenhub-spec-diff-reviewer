@@ -100,6 +100,12 @@ async function main() {
       client.send('Runtime.enable'),
       client.send('Log.enable')
     ]);
+    await client.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `window.__browserSmokeUnhandledRejections = [];
+        window.addEventListener('unhandledrejection', (event) => {
+          window.__browserSmokeUnhandledRejections.push(String(event.reason?.message || event.reason));
+        });`
+    });
     await client.send('Browser.setDownloadBehavior', {
       behavior: 'allow',
       downloadPath,
@@ -121,14 +127,41 @@ async function main() {
       10_000
     );
 
+    await evaluate(client, `(() => {
+      for (const details of document.querySelectorAll('#findings-list details.evidence')) {
+        details.open = true;
+      }
+    })()`);
+
     const state = await evaluate(client, `(() => ({
       verdict: document.getElementById('verdict-heading').textContent,
-      coverageRows: document.querySelectorAll('#coverage-body tr').length,
-      findings: document.querySelectorAll('.finding-card').length,
+      coverageSummary: document.getElementById('coverage-summary').textContent,
+      coverage: [...document.querySelectorAll('#coverage-body tr')].map((row) => {
+        const cells = row.querySelectorAll('td');
+        return {
+          requirementId: cells[0]?.textContent.trim(),
+          status: cells[1]?.textContent.trim().toLowerCase(),
+          evidenceLocations: [...row.querySelectorAll('.evidence-location')]
+            .map((item) => item.textContent.trim())
+        };
+      }),
+      findings: [...document.querySelectorAll('.finding-card')].map((card) => ({
+        severity: card.querySelector('.severity')?.textContent.trim(),
+        title: card.querySelector('h4')?.textContent.trim(),
+        evidenceOpen: card.querySelector('details.evidence')?.open === true,
+        evidenceText: card.querySelector('details.evidence')?.textContent || ''
+      })),
+      missingTests: [...document.querySelectorAll('#missing-tests .result-list > li')].map((item) => ({
+        title: item.querySelector('strong')?.textContent.replace(/:\\s*$/, '').trim(),
+        text: item.textContent
+      })),
+      missingTestsText: document.getElementById('missing-tests').textContent,
       evidenceGroups: document.querySelectorAll('details.evidence').length,
       progress: [...document.querySelectorAll('#progress-list li')].map((item) => item.textContent),
       downloadsVisible: !document.getElementById('download-actions').hidden,
       validation: document.getElementById('validation-badge').textContent,
+      localValidation: document.getElementById('local-validation').textContent,
+      provenanceText: document.getElementById('provenance-grid').textContent,
       errorVisible: !document.getElementById('error-box').hidden,
       offlineLabel: document.getElementById('mode-badge').textContent
     }))()`);
@@ -166,12 +199,14 @@ async function main() {
     await evaluate(client, "document.getElementById('download-markdown').click()", true);
     await evaluate(client, "document.getElementById('download-json').click()", true);
     await waitForFiles(downloadPath, ['codex-hy3-review.md', 'codex-hy3-review.json'], 5_000);
+    const downloadedMarkdown = await fs.readFile(
+      path.join(downloadPath, 'codex-hy3-review.md'),
+      'utf8'
+    );
     const downloadedJson = JSON.parse(
       await fs.readFile(path.join(downloadPath, 'codex-hy3-review.json'), 'utf8')
     );
-    if (downloadedJson.result?.verdict !== 'not_ready') {
-      throw new Error('Downloaded JSON did not contain the visible offline verdict.');
-    }
+    assertDownloadedArtifacts(downloadedJson, downloadedMarkdown, state);
 
     await evaluate(client, "document.getElementById('start-review').click()", true);
     await waitForExpression(client, "!document.getElementById('cancel-review').disabled", 2_000);
@@ -182,6 +217,14 @@ async function main() {
       2_000
     );
     await waitUntil(() => cancellationObserved, 2_000, 'Server did not observe browser cancellation.');
+
+    const unhandledRejections = await evaluate(
+      client,
+      'window.__browserSmokeUnhandledRejections || []'
+    );
+    if (unhandledRejections.length > 0) {
+      throw new Error(`Browser reported unhandled rejections: ${unhandledRejections.join(' | ')}`);
+    }
 
     if (consoleProblems.length > 0) {
       throw new Error(`Browser console reported errors: ${consoleProblems.join(' | ')}`);
@@ -194,7 +237,8 @@ async function main() {
       viewportResults,
       downloads: ['codex-hy3-review.md', 'codex-hy3-review.json'],
       cancellationObserved,
-      consoleErrors: 0
+      consoleErrors: 0,
+      unhandledRejections: 0
     };
   } catch (error) {
     if (browserStderr) error.message += `\nChrome diagnostics:\n${browserStderr}`;
@@ -212,15 +256,119 @@ async function main() {
 
 function assertSmokeState(state) {
   if (state.verdict !== 'NOT READY') throw new Error(`Unexpected visible verdict: ${state.verdict}`);
-  if (state.coverageRows < 1) throw new Error('Coverage matrix did not render.');
-  if (state.findings < 1) throw new Error('Findings did not render.');
+  if (state.coverageSummary !== '2/5 met') {
+    throw new Error(`Unexpected visible coverage summary: ${state.coverageSummary}`);
+  }
+  assertExactCoverage(state.coverage, 'visible coverage matrix');
+  const r4 = state.coverage.find((item) => item.requirementId === 'R4');
+  if (r4.evidenceLocations.some((location) => location.startsWith('diff '))) {
+    throw new Error('Visible R4 coverage falsely cited implementation evidence.');
+  }
+  if (state.findings.length !== 2 || state.findings.some((finding) => finding.severity !== 'P1')) {
+    throw new Error('The browser must show exactly two P1 findings.');
+  }
+  const thresholdFinding = state.findings.find((finding) =>
+    /strict greater-than|30[- ]minute.*boundary|threshold/i.test(finding.title)
+  );
+  const futureFinding = state.findings.find((finding) => /future.*lastSeen/i.test(finding.title));
+  if (!thresholdFinding) throw new Error('The exact 30-minute threshold finding was not visible.');
+  if (!futureFinding) throw new Error('The future-lastSeen finding was not visible.');
+  if (state.findings.some((finding) => !finding.evidenceOpen)) {
+    throw new Error('Finding evidence was not expanded for browser inspection.');
+  }
+  if (!/Return `expired` at or after exactly 30 minutes/.test(thresholdFinding.evidenceText)
+      || !/elapsed\s*>\s*30\s*\*\s*60\s*\*\s*1000/.test(thresholdFinding.evidenceText)) {
+    throw new Error('The threshold finding did not show its R3 specification and strict > evidence.');
+  }
+  if (!/Reject a `lastSeen` value that is later than `now`/.test(futureFinding.evidenceText)
+      || !/const\s+elapsed\s*=\s*now\s*-\s*lastSeen/.test(futureFinding.evidenceText)
+      || !/return\s+elapsed\s*>\s*30\s*\*\s*60\s*\*\s*1000/.test(futureFinding.evidenceText)) {
+    throw new Error('The future-lastSeen finding did not show its R4 specification and implementation path.');
+  }
+  if (state.missingTests.length !== 3) {
+    throw new Error(`Expected three visible missing tests, found ${state.missingTests.length}.`);
+  }
+  for (const pattern of [/29:59/, /30:00/, /future\s+lastSeen/i, /lastSeen\s*>\s*now/]) {
+    if (!pattern.test(state.missingTestsText)) {
+      throw new Error(`Missing-test text did not match ${pattern}.`);
+    }
+  }
   if (state.evidenceGroups < 1) throw new Error('Expandable evidence did not render.');
   if (!state.downloadsVisible) throw new Error('Download actions were not visible.');
   if (state.errorVisible) throw new Error('The successful review left an error visible.');
   if (!/schema passed.*evidence passed/.test(state.validation)) {
     throw new Error(`Validation state was not visible: ${state.validation}`);
   }
+  if (!/passed schema.*passed evidence/.test(state.localValidation)) {
+    throw new Error(`Local validation state was not visible: ${state.localValidation}`);
+  }
   if (state.offlineLabel !== 'OFFLINE / FAKE') throw new Error('Offline result was not visibly labelled.');
+}
+
+function assertDownloadedArtifacts(downloadedJson, downloadedMarkdown, state) {
+  if (downloadedJson.result?.verdict !== 'not_ready' || !/^## NOT READY$/m.test(downloadedMarkdown)) {
+    throw new Error('Downloaded Markdown and JSON did not contain the visible offline verdict.');
+  }
+  assertExactCoverage(downloadedJson.result.coverage, 'downloaded JSON coverage');
+
+  for (const item of downloadedJson.result.coverage) {
+    const row = new RegExp(`^\\| ${item.requirementId} \\| ${item.status.toUpperCase()} \\|`, 'm');
+    if (!row.test(downloadedMarkdown)) {
+      throw new Error(`Downloaded Markdown did not agree with JSON status for ${item.requirementId}.`);
+    }
+  }
+
+  const downloadedFindings = downloadedJson.result.findings || [];
+  if (downloadedFindings.length !== 2 || downloadedFindings.some((finding) => finding.severity !== 'P1')) {
+    throw new Error('Downloaded JSON did not contain exactly two P1 findings.');
+  }
+  if (JSON.stringify(downloadedFindings.map((finding) => finding.title))
+      !== JSON.stringify(state.findings.map((finding) => finding.title))) {
+    throw new Error('Downloaded JSON finding titles did not agree with the browser result.');
+  }
+  for (const finding of downloadedFindings) {
+    if (!downloadedMarkdown.includes(`#### ${finding.title}`)) {
+      throw new Error(`Downloaded Markdown omitted finding: ${finding.title}.`);
+    }
+  }
+
+  const downloadedMissingTests = downloadedJson.result.missingTests || [];
+  if (downloadedMissingTests.length !== 3) {
+    throw new Error(`Downloaded JSON contained ${downloadedMissingTests.length} missing tests instead of three.`);
+  }
+  if (JSON.stringify(downloadedMissingTests.map((item) => item.title))
+      !== JSON.stringify(state.missingTests.map((item) => item.title))) {
+    throw new Error('Downloaded JSON missing-test titles did not agree with the browser result.');
+  }
+  for (const item of downloadedMissingTests) {
+    if (!downloadedMarkdown.includes(`**${item.title}:**`)) {
+      throw new Error(`Downloaded Markdown omitted missing test: ${item.title}.`);
+    }
+  }
+
+  const hashes = [
+    downloadedJson.provenance?.inputs?.specification?.sha256,
+    downloadedJson.provenance?.inputs?.diff?.sha256
+  ];
+  for (const hash of hashes) {
+    if (!hash || !state.provenanceText.includes(hash) || !downloadedMarkdown.includes(hash)) {
+      throw new Error('Downloaded Markdown, JSON, and visible provenance hashes did not agree.');
+    }
+  }
+}
+
+function assertExactCoverage(coverage, label) {
+  const expected = [
+    ['R1', 'met'],
+    ['R2', 'met'],
+    ['R3', 'missing'],
+    ['R4', 'missing'],
+    ['R5', 'missing']
+  ];
+  const actual = (coverage || []).map((item) => [item.requirementId, item.status]);
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`Unexpected ${label}: ${JSON.stringify(actual)}.`);
+  }
 }
 
 class CdpClient {
