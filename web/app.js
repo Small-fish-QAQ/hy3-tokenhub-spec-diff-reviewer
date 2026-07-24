@@ -10,6 +10,9 @@ const elements = {
   start: document.getElementById('start-review'),
   cancel: document.getElementById('cancel-review'),
   offlineBanner: document.getElementById('offline-banner'),
+  stagedBanner: document.getElementById('staged-banner'),
+  stagedSummary: document.getElementById('staged-summary'),
+  stagedEdited: document.getElementById('staged-edited'),
   specification: document.getElementById('specification'),
   diff: document.getElementById('diff'),
   specCount: document.getElementById('spec-count'),
@@ -48,11 +51,13 @@ let runSequence = 0;
 let selectedFixture = 'auto';
 let currentDownloads = null;
 let sampleLoading = false;
+let stagedSource = null;
 let serverConfiguration = {
   defaultMode: 'offline',
   liveAvailable: false,
   model: 'hy3',
-  providerHost: 'loading'
+  providerHost: 'loading',
+  stagedBootstrap: false
 };
 
 elements.mode.addEventListener('change', updateModePresentation);
@@ -86,12 +91,65 @@ async function initialize() {
   } catch (_error) {
     elements.modelBadge.textContent = 'model: unavailable';
     setStatus('The local server configuration could not be read. Offline inputs remain editable.', false);
+    return;
   }
+  if (serverConfiguration.stagedBootstrap) await loadStagedBootstrap();
+}
+
+async function loadStagedBootstrap() {
+  sampleLoading = true;
+  try {
+    const response = await fetch('/api/bootstrap', { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw await responseError(response);
+    const payload = await response.json();
+    if (!payload || !payload.staged) throw new Error('The staged payload was empty.');
+    stagedSource = payload.staged;
+    elements.specification.value = stagedSource.specification;
+    elements.diff.value = stagedSource.diff;
+    elements.specification.setSelectionRange(0, 0);
+    elements.diff.setSelectionRange(0, 0);
+    selectedFixture = 'auto';
+    updateCounts();
+    elements.mode.value = stagedSource.preferredMode === 'offline' ? 'offline' : 'live';
+    updateModePresentation();
+    renderStagedState();
+    if (elements.mode.value === 'offline') {
+      setStatus(`Staged Git change loaded from repository ${stagedSource.repository}. Inspect both inputs, then start the review.`, false);
+    } else if (serverConfiguration.liveAvailable) {
+      setStatus(`Staged Git change loaded from repository ${stagedSource.repository}. Inspect both inputs, then select Review with Hy3.`, false);
+    } else {
+      setError('Live / Hy3 needs a TokenHub credential in the local server environment. Configure the server and relaunch, or explicitly switch the mode to Offline / Fake.');
+      setStatus('Staged Git change loaded. Live / Hy3 is not configured on the local server.', false);
+    }
+  } catch (_error) {
+    showError('The staged bootstrap payload could not be loaded. Reload this page, or paste the specification and diff manually.');
+  } finally {
+    sampleLoading = false;
+  }
+}
+
+function renderStagedState() {
+  if (!stagedSource) return;
+  const parts = [`repository ${stagedSource.repository}`];
+  if (stagedSource.branch) parts.push(`branch ${stagedSource.branch}`);
+  parts.push(`specification ${stagedSource.specPath}`);
+  parts.push(`diff from \`${stagedSource.diffCommand}\``);
+  elements.stagedSummary.textContent = parts.join(' · ');
+  elements.stagedBanner.hidden = false;
+  updateStagedIndicator();
+}
+
+function updateStagedIndicator() {
+  if (!stagedSource) return;
+  const pristine = elements.specification.value === stagedSource.specification
+    && elements.diff.value === stagedSource.diff;
+  elements.stagedEdited.hidden = pristine;
 }
 
 function handleArtifactEdit() {
   selectedFixture = 'auto';
   updateCounts();
+  updateStagedIndicator();
 }
 
 function updateCounts() {
@@ -110,6 +168,7 @@ function updateModePresentation() {
   elements.modeBadge.textContent = offline ? 'OFFLINE / FAKE' : 'LIVE';
   elements.modeBadge.classList.toggle('badge-offline', offline);
   elements.modeBadge.classList.toggle('badge-live', !offline);
+  elements.start.textContent = offline ? 'Start review' : 'Review with Hy3';
 
   if (offline) {
     elements.privacyNote.textContent = 'Only the text in these two editors is reviewed. Offline mode makes no provider request.';
@@ -139,6 +198,7 @@ async function loadSample() {
     elements.diff.scrollTop = 0;
     selectedFixture = sample.fixture || 'auto';
     updateCounts();
+    updateStagedIndicator();
     setStatus(`Loaded sample: ${sample.name}.`, false);
     elements.specification.focus();
   } catch (error) {

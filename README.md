@@ -10,25 +10,65 @@ The reusable review engine is a standalone CLI. Its primary issue-2 workflow is 
 
 _Real local Chrome capture at 1440×900 using the deterministic **OFFLINE / FAKE** provider._
 
-## One-minute path
+## Recommended real workflow: staged browser review
+
+One-time local setup, inside this checkout:
+
+```powershell
+npm ci
+npm link
+```
+
+`npm link` installs the `hy3-review-staged` executable declared by this package's `bin` entry. After that, from any Git repository with a staged change:
+
+```powershell
+hy3-review-staged --spec examples/spec.md
+```
+
+The command treats the Git repository containing the current working directory as the reviewed repository: it reads the explicit specification file, captures the staged diff with the fixed read-only command `git diff --cached --no-ext-diff --no-textconv --no-color`, starts the loopback-only review console, and opens the browser with both inputs preloaded. A banner marks the input source as a **STAGED GIT CHANGE** showing only the repository basename, current branch, and repo-relative spec path — never a full local path.
+
+**Live / Hy3 is always preselected**, whether or not a credential is configured, and the primary action reads **Review with Hy3**. Without a usable server credential the console immediately shows an actionable error instead of running; switching to **Offline / Fake** is an explicit manual choice, never a silent fallback.
+
+Inside this checkout the equivalent development form is:
+
+```powershell
+npm run review:staged:web -- --spec examples/spec.md
+```
+
+Without linking, another repository can still be reviewed through npm's `--prefix` (the reviewed repository is the one containing the directory where you invoke the command):
+
+```powershell
+npm run --prefix <showcase-checkout> review:staged:web -- --spec examples/spec.md
+```
+
+Plain `npm run review:staged:web` works only inside this checkout; it is not available from an unrelated repository.
+
+Boundaries: the bootstrap metadata is projected onto a fixed field whitelist — source type, repository basename, branch, repo-relative spec path, and the fixed diff command — and the launcher adds no credential, environment configuration, absolute-path metadata, or unknown fields. The specification and staged diff themselves are intentionally delivered to the browser verbatim as review input, so **do not include or stage secrets in the specification or diff**. The browser cannot submit filesystem paths, browse the repository, or run Git or shell commands, and the server-side TokenHub credential never leaves the local server process. The reviewed repository is never staged, modified, committed, or reset.
+
+Useful flags: `--port <0-65535>`, `--host 127.0.0.1|localhost|::1`, and `--no-open` to skip the automatic browser launch. The spec path must be a regular file inside the reviewed repository; a missing spec, an empty staged index, a non-Git directory, or an occupied port each fail with a clear nonzero-exit error, and launcher errors never echo absolute local paths or raw Git stderr.
+
+## Deterministic offline browser demo
 
 No credential is needed:
 
 ```powershell
 npm ci
+npm run serve
+```
+
+Open the printed loopback URL, select **Load sample**, keep **Offline / Fake** selected, then select **Start review**. This proves reproducibility and the local schema/evidence pipeline — it is a deterministic local fake, not a real Hy3 call, and every stage and artifact stays labelled **OFFLINE / FAKE**.
+
+The CLI equivalent:
+
+```powershell
 npm run demo:offline
 ```
 
-The deterministic sample produces **NOT READY** with **2/5 met**: R1 and R2 are met, while R3, R4, and R5 are missing. Its two P1 findings cover the strict `>` check that leaves exactly 30:00 active and the absent rejection of a future `lastSeen`; its three missing tests cover 29:59, exactly 30:00, and `lastSeen > now`. It uses the same input preparation, streaming-shaped provider path, JSON contract, evidence validation, renderer, and atomic output bundle as live mode. Every terminal stage and artifact is labelled **OFFLINE / FAKE**.
+The deterministic sample produces **NOT READY** with **2/5 met**: R1 and R2 are met, while R3, R4, and R5 are missing. Its two P1 findings cover the strict `>` check that leaves exactly 30:00 active and the absent rejection of a future `lastSeen`; its three missing tests cover 29:59, exactly 30:00, and `lastSeen > now`. It uses the same input preparation, streaming-shaped provider path, JSON contract, evidence validation, renderer, and atomic output bundle as live mode.
 
-For the focused local browser console:
+## Historical live evidence
 
-```powershell
-npm run serve
-# Open the printed loopback URL, load the sample, and select Start review.
-```
-
-The existing [31-second live TokenHub recording](docs/assets/hy3-spec-to-diff-demo.mp4) is real evidence for the original CLI core, but it predates the structured/evidence/browser upgrades. See [the recording plan](docs/DEMO.md) for the updated 50–55 second offline or live capture; do not present an offline result as live.
+The existing [31-second MP4](docs/assets/hy3-spec-to-diff-demo.mp4) is historical live CLI evidence recorded against an earlier revision of the core reviewer, before the structured-schema, evidence-verification, and browser upgrades. It remains real TokenHub evidence for that revision but must not be presented as the current browser/schema workflow. See [the recording plan](docs/DEMO.md) for the updated 50–55 second staged browser capture; never present an offline result as live.
 
 ## Codex staged-diff workflow
 
@@ -45,6 +85,8 @@ git diff --cached --no-ext-diff --no-textconv --no-color
 ```
 
 An empty staged diff fails clearly. The reviewer never falls back to unstaged files, stages changes, commits, resets, checks out files, or changes the working tree. The human owns the specification, staged scope, test execution, security review, and merge decision.
+
+The browser launcher (`hy3-review-staged` after `npm link`, or `npm run review:staged:web` inside this checkout) wraps the identical fixed diff command and repository boundary; it adds only the sanitized bootstrap payload and the loopback console on top of the same review engine.
 
 Full boundary and command details: [Codex workflow guide](docs/CODEX_WORKFLOW.md).
 
@@ -77,6 +119,12 @@ Then run one bounded live review:
 
 ```powershell
 npm run review:staged -- --spec examples/spec.md --output reports/review.md
+```
+
+or open the staged browser console for the same staged change:
+
+```powershell
+npm run review:staged:web -- --spec examples/spec.md
 ```
 
 The repository includes the [sanitized record of one bounded live verification](docs/evidence/live-verification-2026-07-22.md). It records the real finish reason, request-ID presence, hashes, and validation outcome without retaining credentials or absolute paths.
@@ -170,11 +218,12 @@ The browser is a thin loopback-only shell over the same `reviewArtifacts` engine
 
 - three-column specification, unified diff, and structured result layout;
 - bundled sample, Offline / Live mode, immediate progress, cancellation, and duplicate/stale-response prevention;
+- a staged-input state: launched through the staged launcher (`hy3-review-staged` or `review:staged:web`), the console preloads both editors, shows a **STAGED GIT CHANGE** banner with repository basename, branch, and repo-relative spec path, always preselects Live / Hy3 (with an actionable error when no credential is configured), relabels the primary action **Review with Hy3**, and flags when preloaded inputs are edited;
 - verdict, coverage matrix, P0–P3 findings, expandable evidence, missing tests, uncertainties, hashes, and validation status;
 - client-side Markdown/JSON downloads of the already validated response; and
 - associated labels, keyboard operation, visible focus, `aria-live` status, disabled states, readable contrast, responsive layout, and reduced-motion support.
 
-The key stays server-side. The server binds to loopback by default, checks Host/origin, serves a fixed file whitelist, enforces request and core artifact limits, returns no raw provider stack trace, and offers no arbitrary file or shell endpoint.
+The key stays server-side. The server binds to loopback by default, checks Host/origin, serves a fixed file whitelist, enforces request and core artifact limits, returns no raw provider stack trace, and offers no arbitrary file or shell endpoint. The staged bootstrap payload is projected onto a fixed field whitelist before serving: its metadata (source type, repository basename, branch, repo-relative spec path, fixed diff command) adds no credential, environment value, or absolute path, and unknown fields are dropped. The specification and diff artifacts pass through verbatim as review input — they contain exactly what the user wrote and staged, so secrets must not be placed in them.
 
 ## Offline evaluation and tests
 

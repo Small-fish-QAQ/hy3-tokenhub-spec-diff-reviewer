@@ -4,9 +4,10 @@ const fs = require('node:fs/promises');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { execFile, spawn } = require('node:child_process');
 
 const { createOfflineProvider } = require('../lib/offline_provider');
+const { collectStagedBootstrap } = require('../lib/staged_web');
 const { FriendlyError } = require('../lib/tokenhub');
 const { startServer } = require('../lib/server');
 
@@ -16,6 +17,13 @@ const VIEWPORTS = Object.freeze([
   { width: 1920, height: 1080 }
 ]);
 const OUTPUT_DIRECTORY = path.resolve(__dirname, '..', 'docs', 'assets', 'browser');
+const STAGED_SESSION_SOURCE = [
+  'export function sessionStatus(lastSeen, now) {',
+  '  const elapsed = now - lastSeen;',
+  "  return elapsed > 30 * 60 * 1000 ? 'expired' : 'active';",
+  '}',
+  ''
+].join('\n');
 
 async function main() {
   const chromePath = await findChrome();
@@ -218,6 +226,8 @@ async function main() {
     );
     await waitUntil(() => cancellationObserved, 2_000, 'Server did not observe browser cancellation.');
 
+    const stagedConsole = await runStagedConsolePhase({ debugPort, temporaryRoot });
+
     const unhandledRejections = await evaluate(
       client,
       'window.__browserSmokeUnhandledRejections || []'
@@ -237,6 +247,7 @@ async function main() {
       viewportResults,
       downloads: ['codex-hy3-review.md', 'codex-hy3-review.json'],
       cancellationObserved,
+      stagedConsole,
       consoleErrors: 0,
       unhandledRejections: 0
     };
@@ -368,6 +379,168 @@ function assertExactCoverage(coverage, label) {
   const actual = (coverage || []).map((item) => [item.requirementId, item.status]);
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`Unexpected ${label}: ${JSON.stringify(actual)}.`);
+  }
+}
+
+function runGit(args, cwd) {
+  return new Promise((resolve, reject) => {
+    execFile('git', args, { cwd, encoding: 'utf8', windowsHide: true }, (error, stdout, stderr) => {
+      if (error) reject(new Error(`git ${args.join(' ')} failed: ${stderr || error.message}`));
+      else resolve(stdout);
+    });
+  });
+}
+
+/**
+ * Staged-console DOM phase: build a real temporary staged repository, serve
+ * its sanitized bootstrap without a credential, and prove the browser-side
+ * staged state end to end. Never performs a live provider request.
+ */
+async function runStagedConsolePhase({ debugPort, temporaryRoot }) {
+  const repositoryRoot = path.join(temporaryRoot, 'staged-repo');
+  await fs.mkdir(path.join(repositoryRoot, 'examples'), { recursive: true });
+  await fs.mkdir(path.join(repositoryRoot, 'src'), { recursive: true });
+  await runGit(['init'], repositoryRoot);
+  await runGit(['symbolic-ref', 'HEAD', 'refs/heads/staged-demo'], repositoryRoot);
+  await fs.copyFile(
+    path.resolve(__dirname, '..', 'samples', 'offline', 'missing-behavior', 'spec.md'),
+    path.join(repositoryRoot, 'examples', 'spec.md')
+  );
+  await fs.writeFile(path.join(repositoryRoot, 'src', 'session.js'), STAGED_SESSION_SOURCE, 'utf8');
+  await runGit(['add', 'src/session.js'], repositoryRoot);
+
+  const bootstrap = await collectStagedBootstrap({ spec: 'examples/spec.md', cwd: repositoryRoot });
+  const { server, url } = await startServer({ port: 0, host: '127.0.0.1', env: {}, bootstrap });
+  let client;
+  const consoleProblems = [];
+  try {
+    const page = await fetchJson(
+      `http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(url)}`,
+      { method: 'PUT' }
+    );
+    client = await CdpClient.connect(page.webSocketDebuggerUrl);
+    client.on('Runtime.exceptionThrown', (event) => {
+      consoleProblems.push(event.exceptionDetails?.text || 'Uncaught browser exception');
+    });
+    client.on('Log.entryAdded', (event) => {
+      if (event.entry?.level === 'error') consoleProblems.push(event.entry.text);
+    });
+    await Promise.all([
+      client.send('Page.enable'),
+      client.send('Runtime.enable'),
+      client.send('Log.enable')
+    ]);
+    const loaded = client.once('Page.loadEventFired');
+    await client.send('Page.navigate', { url });
+    await loaded;
+    await waitForExpression(
+      client,
+      "document.getElementById('diff').value.startsWith('diff --git') && !document.getElementById('staged-banner').hidden",
+      5_000
+    );
+
+    const state = await evaluate(client, `(() => ({
+      specValue: document.getElementById('specification').value,
+      diffValue: document.getElementById('diff').value,
+      bannerHidden: document.getElementById('staged-banner').hidden,
+      bannerText: document.getElementById('staged-summary').textContent,
+      editedHidden: document.getElementById('staged-edited').hidden,
+      mode: document.getElementById('mode').value,
+      modeBadge: document.getElementById('mode-badge').textContent,
+      offlineBannerHidden: document.getElementById('offline-banner').hidden,
+      startLabel: document.getElementById('start-review').textContent,
+      errorHidden: document.getElementById('error-box').hidden,
+      errorText: document.getElementById('error-box').textContent,
+      statusText: document.getElementById('run-status').textContent,
+      bodyText: document.body.textContent
+    }))()`);
+    assertStagedConsoleState(state, bootstrap, repositoryRoot);
+
+    await evaluate(client, `(() => {
+      const diff = document.getElementById('diff');
+      diff.value += 'x';
+      diff.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    if (!(await evaluate(client, "!document.getElementById('staged-edited').hidden"))) {
+      throw new Error('Editing the staged diff did not reveal the edited-after-load indicator.');
+    }
+    await evaluate(client, `(() => {
+      const diff = document.getElementById('diff');
+      diff.value = diff.value.slice(0, -1);
+      diff.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    if (!(await evaluate(client, "document.getElementById('staged-edited').hidden"))) {
+      throw new Error('Restoring the exact staged diff did not clear the edited indicator.');
+    }
+
+    await evaluate(client, "document.getElementById('load-sample').click()", true);
+    await waitForExpression(
+      client,
+      "document.getElementById('run-status').textContent.includes('Loaded sample')",
+      5_000
+    );
+    if (!(await evaluate(client, "!document.getElementById('staged-edited').hidden"))) {
+      throw new Error('Loading the bundled sample did not mark the staged content as replaced.');
+    }
+
+    if (consoleProblems.length > 0) {
+      throw new Error(`Staged console reported browser errors: ${consoleProblems.join(' | ')}`);
+    }
+
+    return {
+      repository: bootstrap.repository,
+      branch: bootstrap.branch,
+      specPath: bootstrap.specPath,
+      livePreselected: state.mode === 'live',
+      startLabel: state.startLabel,
+      credentialErrorShown: !state.errorHidden,
+      editedIndicatorVerified: true,
+      consoleErrors: 0
+    };
+  } finally {
+    client?.close();
+    server.closeAllConnections?.();
+    await new Promise((resolve) => server.close(resolve));
+  }
+}
+
+function assertStagedConsoleState(state, bootstrap, repositoryRoot) {
+  if (state.specValue !== bootstrap.specification) {
+    throw new Error('The specification textarea did not contain the exact staged spec.');
+  }
+  if (state.diffValue !== bootstrap.diff) {
+    throw new Error('The diff textarea did not contain the exact staged diff.');
+  }
+  if (state.bannerHidden) throw new Error('The STAGED GIT CHANGE banner was not visible.');
+  if (!state.bannerText.includes(bootstrap.repository) || !state.bannerText.includes(bootstrap.specPath)) {
+    throw new Error(`The staged banner did not show the repository and spec path: ${state.bannerText}`);
+  }
+  if (!state.editedHidden) throw new Error('The edited indicator was visible before any edit.');
+  if (state.mode !== 'live' || state.modeBadge !== 'LIVE') {
+    throw new Error(`Live mode was not preselected: mode=${state.mode} badge=${state.modeBadge}`);
+  }
+  if (!state.offlineBannerHidden) {
+    throw new Error('The offline banner was visible — the console silently switched to Offline.');
+  }
+  if (state.startLabel !== 'Review with Hy3') {
+    throw new Error(`The primary action did not read Review with Hy3: ${state.startLabel}`);
+  }
+  if (state.errorHidden || !/TokenHub credential/.test(state.errorText) || !/Offline \/ Fake/.test(state.errorText)) {
+    throw new Error('The no-credential state did not show the actionable Live error.');
+  }
+  if (!state.statusText.includes('Staged Git change loaded')) {
+    throw new Error(`The staged status message was not visible: ${state.statusText}`);
+  }
+  for (const variant of [repositoryRoot, repositoryRoot.split(path.sep).join('/')]) {
+    if (state.bodyText.includes(variant)) {
+      throw new Error('An absolute repository path leaked into the visible DOM.');
+    }
+  }
+  if (/[A-Za-z]:[\\/]/.test(state.bodyText)) {
+    throw new Error('A drive-letter path leaked into the visible DOM.');
+  }
+  if (/TOKENHUB_API_KEY/.test(state.bodyText)) {
+    throw new Error('A credential variable name leaked into the visible DOM.');
   }
 }
 

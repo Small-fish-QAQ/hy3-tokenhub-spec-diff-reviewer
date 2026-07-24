@@ -3,6 +3,9 @@
   "version": "1.1.0",
   "description": "An evidence-grounded Codex + Hy3 staged-diff reviewer with deterministic offline evaluation.",
   "main": "hy3_showcase.js",
+  "bin": {
+    "hy3-review-staged": "scripts/review_staged_web.js"
+  },
   "scripts": {
     "lint": "node scripts/lint.js",
     "docs:check": "node scripts/check_docs.js",
@@ -11,6 +14,7 @@
     "test:browser": "node --test test/browser.test.js",
     "test:browser:smoke": "node scripts/browser_smoke.js",
     "review:staged": "node scripts/review_staged.js",
+    "review:staged:web": "node scripts/review_staged_web.js",
     "check": "node hy3_showcase.js check",
     "review:sample": "node hy3_showcase.js diff-review --spec samples/issue.md --diff samples/change.diff --output reports/sample-review.md",
     "review:sample:no-stream": "node hy3_showcase.js diff-review --spec samples/issue.md --diff samples/change.diff --no-stream --output reports/sample-review.md",

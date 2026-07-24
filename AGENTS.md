@@ -14,6 +14,14 @@ When the user asks for a specification-to-staged-diff readiness review:
 
 4. Summarize the validated verdict, P0-P3 findings, missing tests, uncertainties, and saved Markdown/JSON paths. Keep the result advisory and leave the final merge decision to the human.
 
+When the user prefers a visual review of the same staged change, run:
+
+```powershell
+npm run review:staged:web -- --spec <spec-path>
+```
+
+It reads the identical staged diff, then serves the loopback browser console with both inputs preloaded and Live / Hy3 always preselected; without a configured credential the console shows an actionable error and Offline / Fake remains a manual choice. It never modifies the repository. The specification and staged diff are delivered verbatim to the local console, so never include or stage secrets in them. (From a different repository, the linked `hy3-review-staged --spec <spec-path>` executable behaves the same.)
+
 For a credential-free demonstration, use:
 
 ```powershell

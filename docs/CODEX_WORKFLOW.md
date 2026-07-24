@@ -17,6 +17,22 @@ npm run review:staged -- --spec examples/spec.md --output reports/review.md
 
 `HY3_BASE_URL` defaults to the officially documented Guangzhou endpoint. Use `https://tokenhub-intl.tencentmaas.com/v1` for a Singapore-region key. `HY3_MODEL` defaults to `hy3`. Keys and endpoints must belong to the same TokenHub region.
 
+## Staged browser review
+
+The same staged boundary is available through the local browser console. Inside this checkout:
+
+```powershell
+npm run review:staged:web -- --spec examples/spec.md
+```
+
+From any other Git repository, after a one-time `npm link` inside this checkout:
+
+```powershell
+hy3-review-staged --spec examples/spec.md
+```
+
+The launcher validates that the current directory is inside a Git repository, reads the explicit spec file (which must be a regular file inside that repository), captures the identical fixed `git diff --cached --no-ext-diff --no-textconv --no-color` output, and serves the loopback-only console with both inputs preloaded. The console marks the source as a staged Git change, always preselects Live / Hy3, and labels the primary action **Review with Hy3**; when no usable server credential is configured it shows an actionable error, and Offline / Fake remains an explicit manual choice with no silent fallback. The browser receives a whitelist-projected payload: sanitized metadata (repository basename, branch, repo-relative spec path, the fixed diff command) plus the specification and staged diff verbatim. The launcher adds no credential, environment configuration, absolute-path metadata, or unknown fields, and the browser gains no Git or shell capability — but the two artifacts are user-authored text delivered as-is, so never include or stage secrets in the specification or diff.
+
 ## Offline demonstration
 
 ```powershell

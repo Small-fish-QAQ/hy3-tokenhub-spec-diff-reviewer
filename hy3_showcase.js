@@ -313,7 +313,10 @@ function printUsage(output = process.stdout) {
   output.write('  check        Verify TokenHub endpoint, authentication, and model listing\n');
   output.write('  serve        Start the local browser review console\n\n');
   output.write('Canonical Codex workflow:\n');
-  output.write('  npm run review:staged -- --spec examples/spec.md\n');
+  output.write('  npm run review:staged -- --spec examples/spec.md\n\n');
+  output.write('Staged browser workflow:\n');
+  output.write('  npm run review:staged:web -- --spec examples/spec.md\n');
+  output.write('  hy3-review-staged --spec examples/spec.md   (any repository, after npm link)\n');
 }
 
 function printDiffReviewHelp(output = process.stdout) {

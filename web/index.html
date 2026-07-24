@@ -52,6 +52,12 @@
       <span>Deterministic local evidence. No Hy3 service call is made.</span>
     </div>
 
+    <div class="staged-banner" id="staged-banner" role="note" hidden>
+      <strong>STAGED GIT CHANGE</strong>
+      <span id="staged-summary"></span>
+      <span class="staged-edited" id="staged-edited" hidden>Inputs edited after load — the editors no longer hold the exact staged content.</span>
+    </div>
+
     <section class="review-grid" aria-label="Specification, diff, and result">
       <article class="panel input-panel">
         <div class="panel-heading">
@@ -73,7 +79,7 @@
           </div>
           <span class="input-count" id="diff-count">0 lines</span>
         </div>
-        <p class="panel-help" id="diff-help">Paste a unified diff, or launch the server through the staged-diff CLI workflow.</p>
+        <p class="panel-help" id="diff-help">Paste a unified diff, or launch <code>hy3-review-staged</code> (development alternative: <code>npm run review:staged:web</code> inside the showcase checkout) to preload the staged Git change.</p>
         <textarea id="diff" aria-describedby="diff-help diff-count" spellcheck="false" placeholder="diff --git a/src/example.js b/src/example.js…"></textarea>
       </article>
 

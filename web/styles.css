@@ -302,6 +302,37 @@ select {
   letter-spacing: 0.06em;
 }
 
+.staged-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 9px 13px;
+  color: #d9f6e8;
+  border: 1px solid rgba(127, 242, 191, 0.42);
+  border-radius: 11px;
+  background: rgba(50, 217, 154, 0.08);
+  font-size: 0.78rem;
+}
+
+.staged-banner strong {
+  color: var(--mint);
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+}
+
+.staged-banner #staged-summary {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.staged-edited {
+  color: var(--amber);
+  font-weight: 700;
+}
+
 .review-grid {
   display: grid;
   grid-template-columns: minmax(250px, 0.86fr) minmax(290px, 0.98fr) minmax(390px, 1.35fr);
@@ -349,6 +380,12 @@ select {
   min-height: 41px;
   margin: 10px 0 12px;
   font-size: 0.77rem;
+}
+
+.panel-help code {
+  color: var(--muted-strong);
+  font-family: var(--mono);
+  font-size: 0.71rem;
 }
 
 textarea {
@@ -842,7 +879,8 @@ footer {
     width: 100%;
   }
 
-  .offline-banner {
+  .offline-banner,
+  .staged-banner {
     align-items: flex-start;
     flex-direction: column;
   }
